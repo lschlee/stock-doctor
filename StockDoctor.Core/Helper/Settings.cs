@@ -19,10 +19,10 @@ namespace StockDoctor.Core.Helper
 
                 var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json");
+                .AddJsonFile("AppSettings.json");
 
                 _configuration = new ConfigurationBuilder()
-                    .AddJsonFile("appsettings.json", true, true)
+                    .AddJsonFile("AppSettings.json", true, true)
                     .Build();
 
                 return _configuration;
