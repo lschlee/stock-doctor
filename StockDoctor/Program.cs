@@ -15,7 +15,6 @@ namespace StockDoctor
         static void Main(string[] args)
         {
             
-            var watch = System.Diagnostics.Stopwatch.StartNew();
            
             Util.ParseLineValues<NegRegistry>(Settings.NegFilePath, Util.GenericParserHandler<NegRegistry>, Util.PlanifyNegRegistry);
             GC.Collect();
@@ -26,9 +25,7 @@ namespace StockDoctor
             Util.ParseLineValues<SellOrderRegistry>(Settings.SellFilePath, Util.GenericParserHandler<SellOrderRegistry>, Util.PlanifySellOrderRegistry);
             GC.Collect();
 
-            watch.Stop();
-            var elapsedMs = watch.ElapsedMilliseconds;
-            Console.WriteLine($"Elaspsed time: {elapsedMs} ms");
+            
 
             Console.WriteLine("Ordering plain data...");
             Util.OrderPlainData();
@@ -39,11 +36,11 @@ namespace StockDoctor
             Console.WriteLine("Adding indicators...");
             Util.AddRSIIndicator();
             Util.AddSMAIndicator();
+            Util.AddEMAIndicator(); // Needs to come after SMA calculation
 
             Console.WriteLine("Writting to .csv");
             Util.WriteCsv();
             Console.WriteLine($"Wrote data in {Util.CSVFileName}.");
-            Console.Read();
 
         }
 

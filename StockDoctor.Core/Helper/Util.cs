@@ -29,6 +29,8 @@ namespace StockDoctor.Core.Helper
 
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+
             string lineText;
             var fileName = fileRelativePath.Split("\\").Last();
             var tempList = new List<T>();
@@ -68,6 +70,11 @@ namespace StockDoctor.Core.Helper
             Console.WriteLine("");
 
             resultHandler?.Invoke(tempList, PlainInfo);
+
+            watch.Stop();
+            var elapsedTimeSpan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
+            Console.WriteLine($"Last {elapsedTimeSpan.Hours} hours, {elapsedTimeSpan.Minutes} minutes and {elapsedTimeSpan.Seconds} seconds plaining {fileRelativePath}.");
+
 
         }
 
@@ -193,6 +200,19 @@ namespace StockDoctor.Core.Helper
                     SmaSUM += PlainInfo[j].ClosePrice;
                 }
                 PlainInfo[i].SMAIndicator = SmaSUM/ Settings.SMAPeriods;
+            }
+        }
+
+        public static void AddEMAIndicator()
+        {
+            for (int i = Settings.SMAPeriods; i < PlainInfo.Count; i++)
+            {
+                double K = 2.0 / (Settings.SMAPeriods + 1.0);
+
+                var lastPeriod = PlainInfo[i - 1];
+
+                PlainInfo[i].EMAIndicator = i == Settings.SMAPeriods? PlainInfo[i].SMAIndicator : (K * (PlainInfo[i].ClosePrice - lastPeriod.EMAIndicator)) + lastPeriod.EMAIndicator;
+
             }
         }
 

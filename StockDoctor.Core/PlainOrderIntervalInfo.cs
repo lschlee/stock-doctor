@@ -37,6 +37,8 @@ namespace StockDoctor.Core
         public double ClosePrice { get; set; }
         public double SMAIndicator { get; internal set; }
 
+        public double EMAIndicator { get; internal set; }
+
         private PropertyInfo[] _PropertyInfos = null;
 
         public override string ToString()
