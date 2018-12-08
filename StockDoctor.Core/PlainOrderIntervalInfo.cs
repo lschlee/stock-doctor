@@ -28,7 +28,7 @@ namespace StockDoctor.Core
 
         public int TotalTradedQuantity { get; set; }
 
-        public double RSAIndicator { get; set; }
+        public double RSIIndicator { get; set; }
 
         public double FirstTradePrice { get; set; }
 

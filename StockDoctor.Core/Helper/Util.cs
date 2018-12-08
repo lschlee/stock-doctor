@@ -19,6 +19,10 @@ namespace StockDoctor.Core.Helper
                 }
                 return _plainInfo;
             }
+            set
+            {
+                _plainInfo = value;
+            }
         }
 
         public static string CSVFileName => $"{Settings.InstrumentSymbol}_{PlainInfo.First().Start.ToString("yyyy-MM-dd")}.csv";
@@ -175,7 +179,7 @@ namespace StockDoctor.Core.Helper
                         lossesDiffs.Add(actualPlainInfo.OpenPrice - actualPlainInfo.ClosePrice);
                     }
                 }
-                PlainInfo[i].RSAIndicator = (100 - 100/(1 + (gainsDiffs.Sum()/lossesDiffs.Sum())))/100;
+                PlainInfo[i].RSIIndicator = (100 - 100/(1 + (gainsDiffs.Sum()/lossesDiffs.Sum())))/100;
             }
         }
 
@@ -215,6 +219,11 @@ namespace StockDoctor.Core.Helper
             }
 
             File.WriteAllLines(CSVFileName, lines.ToArray());
+        }
+
+        public static void OrderPlainData()
+        {
+            PlainInfo = PlainInfo.OrderBy(p => p.Start).ToList();
         }
 
         public static void PlanifyBuyOrderRegistry(List<BuyOrderRegistry> buyOrderRegistries, List<PlainOrderIntervalInfo> plainInfos)

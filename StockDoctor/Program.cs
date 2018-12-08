@@ -30,11 +30,15 @@ namespace StockDoctor
             var elapsedMs = watch.ElapsedMilliseconds;
             Console.WriteLine($"Elaspsed time: {elapsedMs} ms");
 
-            Console.WriteLine("Treating plain data...");
+            Console.WriteLine("Ordering plain data...");
+            Util.OrderPlainData();
 
+            Console.WriteLine("Treating plain data...");
             Util.TreatPlainData();
+
             Console.WriteLine("Adding indicators...");
             Util.AddRSIIndicator();
+            Util.AddSMAIndicator();
 
             Console.WriteLine("Writting to .csv");
             Util.WriteCsv();
