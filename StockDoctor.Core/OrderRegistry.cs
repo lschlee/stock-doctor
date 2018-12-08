@@ -78,7 +78,7 @@ namespace StockDoctor.Core
 
         public string PriorityIndicator => _splitValues[(int)eOrderColumnIndex.PriorityIndicator].Trim();
 
-        public double OrderPrice => double.Parse(_splitValues[(int)eOrderColumnIndex.OrderPrice].Trim());
+        public double OrderPrice => double.Parse(_splitValues[(int)eOrderColumnIndex.OrderPrice].Trim())/1000000.0;
 
 
         public int TotalQuantityofOrder => int.Parse(_splitValues[(int)eOrderColumnIndex.TotalQuantityofOrder].Trim());
