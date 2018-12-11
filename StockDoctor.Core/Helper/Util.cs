@@ -62,7 +62,7 @@ namespace StockDoctor.Core.Helper
                         if (dividedBy20.Contains(currentLine))
                         {
                             //Console.WriteLine($"Parsed {(dividedBy20.IndexOf(currentLine) + 1) * 5}% of {fileName}");
-                            Console.Write($"\r  Parsed {(dividedBy20.IndexOf(currentLine) + 1) * 5}% of {fileName}");
+                            Console.Write($"\rParsed {(dividedBy20.IndexOf(currentLine) + 1) * 5}% of {fileName}");
                         }
                     }
                 }
@@ -136,7 +136,7 @@ namespace StockDoctor.Core.Helper
 
                 }
 
-                Console.Write($"\r  Planified Sell data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
+                Console.Write($"\rPlanified Sell data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
 
                 var nextTime = currentTime.AddMinutes(1);
                 var intervalCount = sellBetweenInterval.Count;
@@ -297,7 +297,7 @@ namespace StockDoctor.Core.Helper
 
                 }
 
-                Console.Write($"\r  Planified Buy data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
+                Console.Write($"\rPlanified Buy data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
                 var nextTime = currentTime.AddMinutes(1);
 
                 var intervalCount = buyBetweenInterval.Count;
@@ -361,7 +361,7 @@ namespace StockDoctor.Core.Helper
 
                 }
 
-                Console.Write($"\r  Planified Neg data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
+                Console.Write($"\rPlanified Neg data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
                 var nextTime = currentTime.AddMinutes(1);
                 var intervalCount = negBetweenInterval.Count;
                 var remainingCount = negRegistries.Count;
