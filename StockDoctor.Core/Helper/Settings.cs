@@ -30,17 +30,25 @@ namespace StockDoctor.Core.Helper
 
         public static int SlidingWindowMinutes => int.Parse(Configuration["slidingWindowMinutes"]);
 
-        public static string NegFilePath => Configuration["negFilePath"];
+        public static string NegFolderPath => Configuration["negFolderPath"];
 
-        public static string BuyFilePath => Configuration["buyFilePath"];
+        public static string BuyFolderPath => Configuration["buyFolderPath"];
 
-        public static string SellFilePath => Configuration["sellFilePath"];
+        public static string SellFolderPath => Configuration["sellFolderPath"];
 
         public static string InstrumentSymbol => Configuration["instrumentSymbol"];
 
         public static int RSIPeriods => int.Parse(Configuration["RSIPeriods"]);
 
         public static int SMAPeriods => int.Parse(Configuration["SMAPeriods"]);
+
+        public static string NegFilePrefix => Configuration["negFilePrefix"];
+
+        public static string BuyFilePrefix => Configuration["buyFilePrefix"];
+
+        public static string SellFilePrefix => Configuration["sellFilePrefix"];
+
+        public static string DateSuffixFormat => Configuration["dateSuffixFormat"];
 
 
     }
