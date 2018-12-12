@@ -80,75 +80,75 @@ namespace StockDoctor.Core.Helper
 
         public static void GenericParserHandler<T>(string[] textValues, List<T> tempList) where T : IStockParseable, new()
         {
-            var newRegistry = new T();
-            newRegistry.SplitValues = textValues;
+            var newRegistry = new T
+            {
+                SplitValues = textValues
+            };
             tempList.Add(newRegistry);
         }
 
         public static void PlanifySellOrderRegistry(List<SellOrderRegistry> sellOrderRegistries, List<PlainOrderIntervalInfo> plainInfos)
         {
-            var minSellEntrytime = sellOrderRegistries.OrderBy(x => x.PriorityTime).First().PriorityTime;
-
-            var maxSellEntrytime = sellOrderRegistries.OrderByDescending(x => x.PriorityTime).First().PriorityTime;
+            sellOrderRegistries = sellOrderRegistries.OrderBy(x => x.PriorityTime).ToList();
+            var minSellEntrytime = sellOrderRegistries.First().PriorityTime;
 
             var minDatetime = minSellEntrytime;
-            var maxDatetime = maxSellEntrytime;
 
             DateTime startTime = new DateTime(minDatetime.Year, minDatetime.Month, minDatetime.Day, minDatetime.Hour, minDatetime.Minute, 0);
-            DateTime endTime = new DateTime(maxDatetime.Year, maxDatetime.Month, maxDatetime.Day, maxDatetime.Hour, maxDatetime.Minute, 0);
-            endTime = endTime.AddMinutes(1);
 
-            var currentTime = startTime;
-            var plainInfoList = new List<PlainOrderIntervalInfo>();
-
-            while (currentTime < endTime)
+            var endIndexIntervals = new List<int>() { 0 };
+            var nextTimeTest = startTime.AddMinutes(1);
+            for (int i = 0; i < sellOrderRegistries.Count; i++)
             {
-                var slidingWindowEnd = currentTime.AddMinutes(Settings.SlidingWindowMinutes);
-
-                var sellBetweenInterval = sellOrderRegistries.Where(x => x.PriorityTime >= currentTime && x.PriorityTime <= slidingWindowEnd).ToList();
-
-
-                if (sellBetweenInterval.Any())
+                if (sellOrderRegistries[i].PriorityTime.Ticks > nextTimeTest.Ticks)
                 {
-
-                    var plainInfo = plainInfos.FirstOrDefault(p => p.Start == currentTime && p.End == slidingWindowEnd);
-
-                    if (plainInfo == null)
-                    {
-                        var newPlainInfo = new PlainOrderIntervalInfo()
-                        {
-                            Start = currentTime,
-                            End = slidingWindowEnd,
-                            SellOffersAmount = sellBetweenInterval.Count,
-                            MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
-                            MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0
-
-                        };
-
-                        plainInfos.Add(newPlainInfo);
-                    }
-                    else
-                    {
-                        plainInfo.SellOffersAmount = sellBetweenInterval.Count;
-                        plainInfo.MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
-                        plainInfo.MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
-                    }
-
+                    endIndexIntervals.Add(i);
+                    nextTimeTest = nextTimeTest.AddMinutes(1);
                 }
-
-                Console.Write($"\rPlanified Sell data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
-
-                var nextTime = currentTime.AddMinutes(1);
-                var intervalCount = sellBetweenInterval.Count;
-                var remainingCount = sellOrderRegistries.Count;
-                if (remainingCount > intervalCount)
-                {
-                    sellOrderRegistries = sellOrderRegistries.GetRange(intervalCount + 1, remainingCount - intervalCount - 1);
-                }
-
-                currentTime = nextTime;
             }
-            Console.WriteLine("");
+
+            for (int i = 0; i < endIndexIntervals.Count; i++)
+            {
+                if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    var sellBetweenInterval = sellOrderRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
+                    watch.Stop();
+                    var elapsedTimeSpan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
+
+                    if (sellBetweenInterval.Any())
+                    {
+                        var startTimeInterval = new DateTime(sellBetweenInterval.First().PriorityTime.Year, sellBetweenInterval.First().PriorityTime.Month, sellBetweenInterval.First().PriorityTime.Day, sellBetweenInterval.First().PriorityTime.Hour, sellBetweenInterval.First().PriorityTime.Minute, 0);
+                        var endTimeInterval = new DateTime(sellBetweenInterval.Last().PriorityTime.Year, sellBetweenInterval.Last().PriorityTime.Month, sellBetweenInterval.Last().PriorityTime.Day, sellBetweenInterval.Last().PriorityTime.Hour, sellBetweenInterval.Last().PriorityTime.Minute, 0).AddMinutes(1);
+                        var plainInfo = plainInfos.FirstOrDefault(p => p.Start == startTimeInterval && p.End == endTimeInterval);
+
+                        if (plainInfo == null)
+                        {
+                            var newPlainInfo = new PlainOrderIntervalInfo()
+                            {
+                                Start = startTimeInterval,
+                                End = endTimeInterval,
+                                SellOffersAmount = sellBetweenInterval.Count,
+                                MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
+                                MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0
+
+                            };
+
+                            plainInfos.Add(newPlainInfo);
+                        }
+                        else
+                        {
+                            plainInfo.SellOffersAmount = sellBetweenInterval.Count;
+                            plainInfo.MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
+                            plainInfo.MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
+                        }
+
+                        Console.Write($"\rPlanified Sell data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");
+                    }
+
+                }
+
+            }
         }
 
         public static void TreatPlainData()
@@ -248,132 +248,135 @@ namespace StockDoctor.Core.Helper
 
         public static void PlanifyBuyOrderRegistry(List<BuyOrderRegistry> buyOrderRegistries, List<PlainOrderIntervalInfo> plainInfos)
         {
-            var minBuyEntrytime = buyOrderRegistries.OrderBy(x => x.PriorityTime).First().PriorityTime;
-
-            var maxBuyEntrytime = buyOrderRegistries.OrderByDescending(x => x.PriorityTime).First().PriorityTime;
+            buyOrderRegistries = buyOrderRegistries.OrderBy(x => x.PriorityTime).ToList();
+            var minBuyEntrytime = buyOrderRegistries.First().PriorityTime;
 
             var minDatetime = minBuyEntrytime;
-            var maxDatetime = maxBuyEntrytime;
 
             DateTime startTime = new DateTime(minDatetime.Year, minDatetime.Month, minDatetime.Day, minDatetime.Hour, minDatetime.Minute, 0);
-            DateTime endTime = new DateTime(maxDatetime.Year, maxDatetime.Month, maxDatetime.Day, maxDatetime.Hour, maxDatetime.Minute, 0);
-            endTime = endTime.AddMinutes(1);
 
-            var currentTime = startTime;
-            var plainInfoList = new List<PlainOrderIntervalInfo>();
-
-            while (currentTime < endTime)
+            var endIndexIntervals = new List<int>() { 0 };
+            var nextTimeTest = startTime.AddMinutes(1);
+            for (int i = 0; i < buyOrderRegistries.Count; i++)
             {
-                var slidingWindowEnd = currentTime.AddMinutes(Settings.SlidingWindowMinutes);
-
-                var buyBetweenInterval = buyOrderRegistries.Where(x => x.PriorityTime >= currentTime && x.PriorityTime <= slidingWindowEnd).ToList();
-
-
-                if (buyBetweenInterval.Any())
+                if (buyOrderRegistries[i].PriorityTime.Ticks > nextTimeTest.Ticks)
                 {
-
-                    var plainInfo = plainInfos.FirstOrDefault(p => p.Start == currentTime && p.End == slidingWindowEnd);
-
-                    if (plainInfo == null)
-                    {
-                        var newPlainInfo = new PlainOrderIntervalInfo()
-                        {
-                            Start = currentTime,
-                            End = slidingWindowEnd,
-                            BuyOffersAmount = buyBetweenInterval.Count,
-                            MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
-                            MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0
-
-                        };
-
-                        plainInfos.Add(newPlainInfo);
-                    }
-                    else
-                    {
-                        plainInfo.BuyOffersAmount = buyBetweenInterval.Count;
-                        plainInfo.MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
-                        plainInfo.MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
-                    }
-
+                    endIndexIntervals.Add(i);
+                    nextTimeTest = nextTimeTest.AddMinutes(1);
                 }
-
-                Console.Write($"\rPlanified Buy data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
-                var nextTime = currentTime.AddMinutes(1);
-
-                var intervalCount = buyBetweenInterval.Count;
-                var remainingCount = buyOrderRegistries.Count;
-                if (remainingCount > intervalCount)
-                {
-                    buyOrderRegistries = buyOrderRegistries.GetRange(intervalCount + 1, remainingCount - intervalCount - 1);
-                }
-
-                currentTime = nextTime;
             }
-            Console.WriteLine("");
+
+            for (int i = 0; i < endIndexIntervals.Count; i++)
+            {
+                if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    var buyBetweenInterval = buyOrderRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
+                    watch.Stop();
+                    var elapsedTimeSpan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
+
+                    if (buyBetweenInterval.Any())
+                    {
+                        var startTimeInterval = new DateTime(buyBetweenInterval.First().PriorityTime.Year, buyBetweenInterval.First().PriorityTime.Month, buyBetweenInterval.First().PriorityTime.Day, buyBetweenInterval.First().PriorityTime.Hour, buyBetweenInterval.First().PriorityTime.Minute, 0);
+                        var endTimeInterval = new DateTime(buyBetweenInterval.Last().PriorityTime.Year, buyBetweenInterval.Last().PriorityTime.Month, buyBetweenInterval.Last().PriorityTime.Day, buyBetweenInterval.Last().PriorityTime.Hour, buyBetweenInterval.Last().PriorityTime.Minute, 0).AddMinutes(1);
+                        var plainInfo = plainInfos.FirstOrDefault(p => p.Start == startTimeInterval && p.End == endTimeInterval);
+
+                        if (plainInfo == null)
+                        {
+                            var newPlainInfo = new PlainOrderIntervalInfo()
+                            {
+                                Start = startTimeInterval,
+                                End = endTimeInterval,
+                                BuyOffersAmount = buyBetweenInterval.Count,
+                                MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
+                                MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0
+
+                            };
+
+                            plainInfos.Add(newPlainInfo);
+                        }
+                        else
+                        {
+                            plainInfo.BuyOffersAmount = buyBetweenInterval.Count;
+                            plainInfo.MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
+                            plainInfo.MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
+                        }
+
+                        Console.Write($"\rPlanified Buy data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");
+                    }
+
+                }
+
+            }
         }
 
         public static void PlanifyNegRegistry(List<NegRegistry> negRegistries, List<PlainOrderIntervalInfo> plainInfos)
         {
-            var minNegEntrytime = negRegistries.OrderBy(x => x.TradeTime).First().TradeTime;
 
-            var maxNegEntrytime = negRegistries.OrderByDescending(x => x.TradeTime).First().TradeTime;
+            negRegistries = negRegistries.OrderBy(x => x.TradeTime).ToList();
+            var minNegEntrytime = negRegistries.First().TradeTime;
 
-            DateTime startTime = new DateTime(minNegEntrytime.Year, minNegEntrytime.Month, minNegEntrytime.Day, minNegEntrytime.Hour, minNegEntrytime.Minute, 0);
-            DateTime endTime = new DateTime(maxNegEntrytime.Year, maxNegEntrytime.Month, maxNegEntrytime.Day, maxNegEntrytime.Hour, maxNegEntrytime.Minute, 0);
-            endTime = endTime.AddMinutes(1);
+            var minDatetime = minNegEntrytime;
 
-            var currentTime = startTime;
+            DateTime startTime = new DateTime(minDatetime.Year, minDatetime.Month, minDatetime.Day, minDatetime.Hour, minDatetime.Minute, 0);
 
-            while (currentTime < endTime)
+            var endIndexIntervals = new List<int>() { 0 };
+            var nextTimeTest = startTime.AddMinutes(1);
+            for (int i = 0; i < negRegistries.Count; i++)
             {
-                var slidingWindowEnd = currentTime.AddMinutes(Settings.SlidingWindowMinutes);
-
-                var negBetweenInterval = negRegistries.Where(x => x.TradeTime >= currentTime && x.TradeTime <= slidingWindowEnd).ToList();
-
-
-                if (negBetweenInterval.Any())
+                if (negRegistries[i].TradeTime.Ticks > nextTimeTest.Ticks)
                 {
+                    endIndexIntervals.Add(i);
+                    nextTimeTest = nextTimeTest.AddMinutes(1);
+                }
+            }
 
-                    var plainInfo = plainInfos.FirstOrDefault(p => p.Start == currentTime && p.End == slidingWindowEnd);
+            for (int i = 0; i < endIndexIntervals.Count; i++)
+            {
+                if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
+                    watch.Stop();
+                    var elapsedTimeSpan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
 
-                    if (plainInfo == null)
+                    if (negBetweenInterval.Any())
                     {
-                        var newPlainInfo = new PlainOrderIntervalInfo()
+                        var startTimeInterval = new DateTime(negBetweenInterval.First().TradeTime.Year, negBetweenInterval.First().TradeTime.Month, negBetweenInterval.First().TradeTime.Day, negBetweenInterval.First().TradeTime.Hour, negBetweenInterval.First().TradeTime.Minute, 0);
+                        var endTimeInterval = new DateTime(negBetweenInterval.Last().TradeTime.Year, negBetweenInterval.Last().TradeTime.Month, negBetweenInterval.Last().TradeTime.Day, negBetweenInterval.Last().TradeTime.Hour, negBetweenInterval.Last().TradeTime.Minute, 0).AddMinutes(1);
+                        var plainInfo = plainInfos.FirstOrDefault(p => p.Start == startTimeInterval && p.End == endTimeInterval);
+
+                        if (plainInfo == null)
                         {
-                            Start = currentTime,
-                            End = slidingWindowEnd,
-                            NegociatedOffersAmount = negBetweenInterval.Count,
-                            TotalTradedQuantity = negBetweenInterval.Select(x => x.TradedQuantity).Sum(),
-                            ClosePrice = negBetweenInterval.Last().TradePrice,
-                            FirstTradePrice = negBetweenInterval.First().TradePrice
+                            var newPlainInfo = new PlainOrderIntervalInfo()
+                            {
+                                Start = startTimeInterval,
+                                End = endTimeInterval,
+                                NegociatedOffersAmount = negBetweenInterval.Count,
+                                TotalTradedQuantity = negBetweenInterval.Select(x => x.TradedQuantity).Sum(),
+                                ClosePrice = negBetweenInterval.Last().TradePrice,
+                                FirstTradePrice = negBetweenInterval.First().TradePrice
 
-                        };
+                            };
 
-                        plainInfos.Add(newPlainInfo);
-                    }
-                    else
-                    {
-                        plainInfo.NegociatedOffersAmount = negBetweenInterval.Count;
-                        plainInfo.TotalTradedQuantity += negRegistries.Select(x => x.TradedQuantity).Sum();
-                        plainInfo.ClosePrice = negBetweenInterval.Last().TradePrice;
-                        plainInfo.FirstTradePrice = negBetweenInterval.First().TradePrice;
+                            plainInfos.Add(newPlainInfo);
+                        }
+                        else
+                        {
+                            plainInfo.NegociatedOffersAmount = negBetweenInterval.Count;
+                            plainInfo.TotalTradedQuantity += negRegistries.Select(x => x.TradedQuantity).Sum();
+                            plainInfo.ClosePrice = negBetweenInterval.Last().TradePrice;
+                            plainInfo.FirstTradePrice = negBetweenInterval.First().TradePrice;
+                        }
+
+                        Console.Write($"\rPlanified Neg data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");
                     }
 
                 }
-
-                Console.Write($"\rPlanified Neg data between {currentTime.ToString("dd/MM/yyyy HH:mm:ss")} and {slidingWindowEnd.ToString("dd/MM/yyyy HH:mm:ss")}.");
-                var nextTime = currentTime.AddMinutes(1);
-                var intervalCount = negBetweenInterval.Count;
-                var remainingCount = negRegistries.Count;
-                if (remainingCount > intervalCount)
-                {
-                    negRegistries = negRegistries.GetRange(intervalCount + 1, remainingCount - intervalCount - 1);
-                }
-
-                currentTime = nextTime;
 
             }
             Console.WriteLine("");
+
         }
 
         [Obsolete("This method requires over 16GB of memory too run", true)]
