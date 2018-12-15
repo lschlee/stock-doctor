@@ -100,7 +100,7 @@ namespace StockDoctor.Core.Helper
             var nextTimeTest = startTime.AddMinutes(1);
             for (int i = 0; i < sellOrderRegistries.Count; i++)
             {
-                if (sellOrderRegistries[i].PriorityTime.Ticks > nextTimeTest.Ticks)
+                if (sellOrderRegistries[i].PriorityTime.Ticks >= nextTimeTest.Ticks)
                 {
                     endIndexIntervals.Add(i);
                     nextTimeTest = nextTimeTest.AddMinutes(1);
@@ -259,7 +259,7 @@ namespace StockDoctor.Core.Helper
             var nextTimeTest = startTime.AddMinutes(1);
             for (int i = 0; i < buyOrderRegistries.Count; i++)
             {
-                if (buyOrderRegistries[i].PriorityTime.Ticks > nextTimeTest.Ticks)
+                if (buyOrderRegistries[i].PriorityTime.Ticks >= nextTimeTest.Ticks)
                 {
                     endIndexIntervals.Add(i);
                     nextTimeTest = nextTimeTest.AddMinutes(1);
@@ -324,7 +324,7 @@ namespace StockDoctor.Core.Helper
             var nextTimeTest = startTime.AddMinutes(1);
             for (int i = 0; i < negRegistries.Count; i++)
             {
-                if (negRegistries[i].TradeTime.Ticks > nextTimeTest.Ticks)
+                if (negRegistries[i].TradeTime.Ticks >= nextTimeTest.Ticks)
                 {
                     endIndexIntervals.Add(i);
                     nextTimeTest = nextTimeTest.AddMinutes(1);
