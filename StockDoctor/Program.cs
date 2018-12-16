@@ -19,9 +19,9 @@ namespace StockDoctor
 
             try
             {
-                var availableNegDays = Directory.GetFiles(Settings.NegFolderPath).Where(f => f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.NegFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
-                var availableCPADays = Directory.GetFiles(Settings.BuyFolderPath).Where(f => f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.BuyFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
-                var availableVDADays = Directory.GetFiles(Settings.SellFolderPath).Where(f => f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.SellFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
+                var availableNegDays = Directory.GetFiles(Settings.NegFolderPath).Where(f => f.Contains(Settings.NegFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.NegFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
+                var availableCPADays = Directory.GetFiles(Settings.BuyFolderPath).Where(f => f.Contains(Settings.BuyFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.BuyFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
+                var availableVDADays = Directory.GetFiles(Settings.SellFolderPath).Where(f => f.Contains(Settings.SellFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.SellFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
 
                 var availableDays = availableNegDays.Intersect(availableVDADays).Intersect(availableCPADays);
 
