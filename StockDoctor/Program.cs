@@ -81,15 +81,7 @@ namespace StockDoctor
                 }
 
                 Console.WriteLine("Ordering plain data...");
-                Util.OrderPlainData();
-
-                Console.WriteLine("Treating plain data...");
-                Util.TreatPlainData();
-
-                Console.WriteLine("Adding indicators...");
-                Util.AddRSIIndicator();
-                Util.AddSMAIndicator();
-                Util.AddEMAIndicator(); // Needs to come after SMA calculation
+                Util.TreatPlainData(availableDays);
 
                 Console.WriteLine("Writting to .csv");
                 Util.WriteCsv();

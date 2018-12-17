@@ -38,6 +38,9 @@ namespace StockDoctor.Core
         public double SMAIndicator { get; internal set; }
 
         public double EMAIndicator { get; internal set; }
+        public double UpperBollingerBand { get; internal set; }
+        public double LowerBollingerBand { get; internal set; }
+        public double MiddleBollingerBand { get; internal set; }
 
         private PropertyInfo[] _PropertyInfos = null;
 

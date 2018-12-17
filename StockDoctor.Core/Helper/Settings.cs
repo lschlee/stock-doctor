@@ -50,6 +50,8 @@ namespace StockDoctor.Core.Helper
 
         public static string DateSuffixFormat => Configuration["dateSuffixFormat"];
 
+        public static int BollingerBandsPeriods => int.Parse(Configuration["BollingerBandsPeriods"]);
+
 
     }
 }

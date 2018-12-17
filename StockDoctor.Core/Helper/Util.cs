@@ -151,32 +151,62 @@ namespace StockDoctor.Core.Helper
             }
         }
 
-        public static void TreatPlainData()
+        public static void TreatPlainData(IEnumerable<DateTime> availableDays)
         {
-            for (int i = 0; i < PlainInfo.Count; i++)
+            EnsureNegotiationsPerInterval(PlainInfo);
+
+            var orderedDays = availableDays.OrderBy(d => d);
+            Console.WriteLine("Adding indicators...");
+
+            foreach (var day in orderedDays)
             {
-                SetMediumPrice(PlainInfo[i]);
+                Util.AddMediumPrice(day);
+                Util.AddRSIIndicator(day);
+                Util.AddSMAIndicator(day);
+                Util.AddEMAIndicator(day); // Needs to come after SMA calculation
+                Util.AddBollingerBandsIndicator(day);
+            }
+
+
+        }
+
+        private static void EnsureNegotiationsPerInterval(List<PlainOrderIntervalInfo> plainInfo)
+        {
+            PlainInfo = PlainInfo.Where(p => p.NegociatedOffersAmount > 0).OrderBy(p => p.Start).ToList();
+        }
+
+        public static void AddMediumPrice(DateTime day)
+        {
+
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = 0; i < plainInfoForDay.Count; i++)
+            {
+                SetMediumPrice(plainInfoForDay[i]);
 
                 if (i == 0)
                 {
-                    PlainInfo[i].OpenPrice = PlainInfo[i].FirstTradePrice;
+                    plainInfoForDay[i].OpenPrice = plainInfoForDay[i].FirstTradePrice;
                 }
                 else
                 {
-                    PlainInfo[i].OpenPrice = PlainInfo[i - 1].ClosePrice;
+                    plainInfoForDay[i].OpenPrice = plainInfoForDay[i - 1].ClosePrice;
                 }
             }
         }
 
-        public static void AddRSIIndicator()
+        public static void AddRSIIndicator(DateTime day)
         {
-            for (int i = Settings.RSIPeriods; i < PlainInfo.Count; i++)
+
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.RSIPeriods; i < plainInfoForDay.Count; i++)
             {
                 var gainsDiffs = new List<double>();
                 var lossesDiffs = new List<double>();
                 for (int j = i - Settings.RSIPeriods; j < i ; j++)
                 {
-                    var actualPlainInfo = PlainInfo[j];
+                    var actualPlainInfo = plainInfoForDay[j];
                     if (actualPlainInfo.ClosePrice > actualPlainInfo.OpenPrice)
                     {
                         gainsDiffs.Add(actualPlainInfo.ClosePrice - actualPlainInfo.OpenPrice);
@@ -186,32 +216,66 @@ namespace StockDoctor.Core.Helper
                         lossesDiffs.Add(actualPlainInfo.OpenPrice - actualPlainInfo.ClosePrice);
                     }
                 }
-                PlainInfo[i].RSIIndicator = (100 - 100/(1 + (gainsDiffs.Sum()/lossesDiffs.Sum())))/100;
+                plainInfoForDay[i].RSIIndicator = (100 - 100/(1 + (gainsDiffs.Sum()/lossesDiffs.Sum())))/100;
             }
         }
 
-        public static void AddSMAIndicator()
+        public static void AddSMAIndicator(DateTime day)
         {
-            for (int i = Settings.SMAPeriods; i < PlainInfo.Count; i++)
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
             {
                 double SmaSUM = 0;
                 for (int j = i - Settings.RSIPeriods; j < i; j++)
                 {
-                    SmaSUM += PlainInfo[j].ClosePrice;
+                    SmaSUM += plainInfoForDay[j].ClosePrice;
                 }
-                PlainInfo[i].SMAIndicator = SmaSUM/ Settings.SMAPeriods;
+                plainInfoForDay[i].SMAIndicator = SmaSUM/ Settings.SMAPeriods;
             }
         }
 
-        public static void AddEMAIndicator()
+        public static void AddEMAIndicator(DateTime day)
         {
-            for (int i = Settings.SMAPeriods; i < PlainInfo.Count; i++)
+
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
             {
                 double K = 2.0 / (Settings.SMAPeriods + 1.0);
 
-                var lastPeriod = PlainInfo[i - 1];
+                var lastPeriod = plainInfoForDay[i - 1];
 
-                PlainInfo[i].EMAIndicator = i == Settings.SMAPeriods? PlainInfo[i].SMAIndicator : (K * (PlainInfo[i].ClosePrice - lastPeriod.EMAIndicator)) + lastPeriod.EMAIndicator;
+                plainInfoForDay[i].EMAIndicator = i == Settings.SMAPeriods? plainInfoForDay[i].SMAIndicator : (K * (plainInfoForDay[i].ClosePrice - lastPeriod.EMAIndicator)) + lastPeriod.EMAIndicator;
+
+            }
+        }
+
+        public static void AddBollingerBandsIndicator(DateTime day)
+        {
+
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.BollingerBandsPeriods; i < plainInfoForDay.Count; i++)
+            {
+                double Sum = 0;
+                for (int j = i - Settings.BollingerBandsPeriods; j < i; j++)
+                {
+                    Sum += plainInfoForDay[j].ClosePrice;
+                }
+                var SMA = Sum / Settings.BollingerBandsPeriods;
+
+                double squaredDiff = 0;
+                for (int j = i - Settings.BollingerBandsPeriods; j < i; j++)
+                {
+                    squaredDiff += Math.Pow(plainInfoForDay[j].ClosePrice - SMA, 2);
+                }
+                var stardardDeviation = Math.Sqrt(squaredDiff / (Settings.BollingerBandsPeriods - 1));
+
+                plainInfoForDay[i].UpperBollingerBand = SMA + (2 * stardardDeviation);
+                plainInfoForDay[i].LowerBollingerBand = SMA - (2 * stardardDeviation);
+                plainInfoForDay[i].MiddleBollingerBand = SMA;
+
 
             }
         }
@@ -239,11 +303,6 @@ namespace StockDoctor.Core.Helper
             }
 
             File.WriteAllLines(CSVFileName, lines.ToArray());
-        }
-
-        public static void OrderPlainData()
-        {
-            PlainInfo = PlainInfo.OrderBy(p => p.Start).ToList();
         }
 
         public static void PlanifyBuyOrderRegistry(List<BuyOrderRegistry> buyOrderRegistries, List<PlainOrderIntervalInfo> plainInfos)
