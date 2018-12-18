@@ -164,10 +164,42 @@ namespace StockDoctor.Core.Helper
                 Util.AddRSIIndicator(day);
                 Util.AddSMAIndicator(day);
                 Util.AddEMAIndicator(day); // Needs to come after SMA calculation
-                Util.AddBollingerBandsIndicator(day);
+                Util.AddBollingerBandsIndicators(day);
+                Util.RemovingImpredictableData();
             }
 
+            Util.SkippingUncalculatedIndicators();
+            SetBuySignal(PlainInfo);
+            RemovingImpredictableData();
 
+        }
+
+        private static void SkippingUncalculatedIndicators()
+        {
+            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0).ToList();
+        }
+
+        private static void RemovingImpredictableData()
+        {
+            PlainInfo = PlainInfo.GetRange(0, PlainInfo.Count - Settings.SlidingWindowMinutes);
+        }
+
+        private static void SetBuySignal(List<PlainOrderIntervalInfo> planInfo)
+        {
+            for (int i = 0; i < planInfo.Count; i++)
+            {
+                try
+                {
+                    if (planInfo[i + Settings.SlidingWindowMinutes + Settings.BuyTimeHold].OpenPrice - planInfo[i + Settings.SlidingWindowMinutes].OpenPrice > 0 )
+                    {
+                        planInfo[i].BuySignal = 1;
+                    }
+                }
+                catch (SystemException)
+                {
+                    continue;
+                }
+            }
         }
 
         private static void EnsureNegotiationsPerInterval(List<PlainOrderIntervalInfo> plainInfo)
@@ -251,7 +283,7 @@ namespace StockDoctor.Core.Helper
             }
         }
 
-        public static void AddBollingerBandsIndicator(DateTime day)
+        public static void AddBollingerBandsIndicators(DateTime day)
         {
 
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
@@ -275,7 +307,6 @@ namespace StockDoctor.Core.Helper
                 plainInfoForDay[i].UpperBollingerBand = SMA + (2 * stardardDeviation);
                 plainInfoForDay[i].LowerBollingerBand = SMA - (2 * stardardDeviation);
                 plainInfoForDay[i].MiddleBollingerBand = SMA;
-
 
             }
         }

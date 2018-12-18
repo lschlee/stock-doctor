@@ -52,6 +52,6 @@ namespace StockDoctor.Core.Helper
 
         public static int BollingerBandsPeriods => int.Parse(Configuration["BollingerBandsPeriods"]);
 
-
+        public static int BuyTimeHold => int.Parse(Configuration["BuyTimeHold"]);
     }
 }

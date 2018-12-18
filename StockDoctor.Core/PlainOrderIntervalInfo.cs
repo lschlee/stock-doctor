@@ -35,12 +35,18 @@ namespace StockDoctor.Core
         public double OpenPrice { get; set; }
 
         public double ClosePrice { get; set; }
+
         public double SMAIndicator { get; internal set; }
 
         public double EMAIndicator { get; internal set; }
+
         public double UpperBollingerBand { get; internal set; }
+
         public double LowerBollingerBand { get; internal set; }
+
         public double MiddleBollingerBand { get; internal set; }
+
+        public int BuySignal { get; internal set; }
 
         private PropertyInfo[] _PropertyInfos = null;
 
