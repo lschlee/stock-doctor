@@ -64,7 +64,7 @@ namespace StockDoctor.Core
 
         public int TradeNumber => int.Parse(_splitValues[(int)eNegColumnIndex.TradeNumber].Trim());
 
-        public double TradePrice => double.Parse(_splitValues[(int)eNegColumnIndex.TradePrice].Trim())/1000000.0;
+        public double TradePrice => double.Parse(_splitValues[(int)eNegColumnIndex.TradePrice].Trim());
 
         public int TradedQuantity => int.Parse(_splitValues[(int)eNegColumnIndex.TradedQuantity].Trim());
 
