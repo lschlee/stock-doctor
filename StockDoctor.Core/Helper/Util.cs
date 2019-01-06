@@ -25,7 +25,7 @@ namespace StockDoctor.Core.Helper
             }
         }
 
-        public static string CSVFileName => $"{Settings.InstrumentSymbol}_{PlainInfo.First().Start.ToString("yyyy-MM-dd")}.csv";
+        public static string CSVFileName => $"{Settings.InstrumentSymbol}_{PlainInfo.First().Start.ToString("yyyy-MM-dd")}_{PlainInfo.Last().Start.ToString("yyyy-MM-dd")}.csv";
 
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
@@ -130,7 +130,7 @@ namespace StockDoctor.Core.Helper
                                 End = endTimeInterval,
                                 SellOffersAmount = sellBetweenInterval.Count,
                                 MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
-                                MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0
+                                MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Where(b => b.OrderPrice > 0).Select(x => x.OrderPrice).Min() : 0
 
                             };
 
@@ -140,7 +140,7 @@ namespace StockDoctor.Core.Helper
                         {
                             plainInfo.SellOffersAmount = sellBetweenInterval.Count;
                             plainInfo.MaxSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
-                            plainInfo.MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
+                            plainInfo.MinSellOffer = sellBetweenInterval.Any() ? sellBetweenInterval.Where(b => b.OrderPrice > 0).Select(x => x.OrderPrice).Min() : 0;
                         }
 
                         Console.Write($"\rPlanified Sell data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");
@@ -160,18 +160,63 @@ namespace StockDoctor.Core.Helper
 
             foreach (var day in orderedDays)
             {
-                Util.AddMediumPrice(day);
-                Util.AddRSIIndicator(day);
-                Util.AddSMAIndicator(day);
-                Util.AddEMAIndicator(day); // Needs to come after SMA calculation
-                Util.AddBollingerBandsIndicators(day);
-                Util.RemovingImpredictableData();
+                AddMediumPrice(day);
+                AddRSIIndicator(day);
+                AddSMAIndicator(day);
+                AddEMAIndicator(day); // Needs to come after SMA calculation
+                AddBollingerBandsIndicators(day);
+                RemovingImpredictableData();
+                NormalizingPriceValues(day);
             }
 
-            Util.SkippingUncalculatedIndicators();
+            SkippingUncalculatedIndicators();
             SetBuySignal(PlainInfo);
             RemovingImpredictableData();
 
+        }
+
+        private static void NormalizingPriceValues(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            int periodsToNormalize = Settings.PeriodsToNormalize;
+
+            for (int i = periodsToNormalize/2; i < plainInfoForDay.Count - periodsToNormalize/2; i++)
+            {
+                var currentPlainInfo = plainInfoForDay[i];
+                var intervalOfInterest = new List<PlainOrderIntervalInfo>();
+                for (int j = i - periodsToNormalize/2; j < i + periodsToNormalize/2; j++)
+                {
+                    intervalOfInterest.Add(plainInfoForDay[j]);
+                }
+
+                currentPlainInfo.NormalizedClosePrice = NormalizeValue(currentPlainInfo.ClosePrice, intervalOfInterest, (PlainOrderIntervalInfo x) => x.ClosePrice);
+                currentPlainInfo.NormalizedMediumPrice = NormalizeValue(currentPlainInfo.MediumPrice, intervalOfInterest, (PlainOrderIntervalInfo x) => x.MediumPrice);
+                currentPlainInfo.NormalizedOpenPrice = NormalizeValue(currentPlainInfo.OpenPrice, intervalOfInterest, (PlainOrderIntervalInfo x) => x.OpenPrice);
+                currentPlainInfo.NormalizedSMAIndicator = NormalizeValue(currentPlainInfo.SMAIndicator, intervalOfInterest, (PlainOrderIntervalInfo x) => x.SMAIndicator);
+                currentPlainInfo.NormalizedEMAIndicator = NormalizeValue(currentPlainInfo.EMAIndicator, intervalOfInterest, (PlainOrderIntervalInfo x) => x.EMAIndicator);
+                currentPlainInfo.NormalizedUpperBollingerBand = NormalizeValue(currentPlainInfo.UpperBollingerBand, intervalOfInterest, (PlainOrderIntervalInfo x) => x.UpperBollingerBand);
+                currentPlainInfo.NormalizedLowerBollingerBand = NormalizeValue(currentPlainInfo.LowerBollingerBand, intervalOfInterest, (PlainOrderIntervalInfo x) => x.LowerBollingerBand);
+                currentPlainInfo.NormalizedMiddleBollingerBand = NormalizeValue(currentPlainInfo.MiddleBollingerBand, intervalOfInterest, (PlainOrderIntervalInfo x) => x.MiddleBollingerBand);
+                currentPlainInfo.NormalizedMaxBuyOffer = NormalizeValue(currentPlainInfo.MaxBuyOffer, intervalOfInterest, (PlainOrderIntervalInfo x) => x.MaxBuyOffer);
+                currentPlainInfo.NormalizedMinSellOffer = NormalizeValue(currentPlainInfo.MinSellOffer, intervalOfInterest, (PlainOrderIntervalInfo x) => x.MinSellOffer);
+                currentPlainInfo.NormalizedFirstTradePrice = NormalizeValue(currentPlainInfo.FirstTradePrice, intervalOfInterest, (PlainOrderIntervalInfo x) => x.FirstTradePrice);
+            }
+        }
+
+        private static double NormalizeValue(double currentValue, List<PlainOrderIntervalInfo> intervalOfInterest, Func<PlainOrderIntervalInfo, double> p)
+        {
+            var values = intervalOfInterest.Select(p);
+            var maxValue = values.Max();
+            var minValue = values.Min();
+            var diffMaxMin = maxValue - minValue;
+            var diffCurrentMin = currentValue - minValue;
+
+            if (diffMaxMin == 0)
+            {
+                return 0;
+            }
+            return diffCurrentMin/diffMaxMin;
         }
 
         private static void SkippingUncalculatedIndicators()
@@ -320,7 +365,7 @@ namespace StockDoctor.Core.Helper
         {
             var plainInfoProps = typeof(PlainOrderIntervalInfo).GetProperties();
 
-            var headerLine = string.Join(";", plainInfoProps.Select(pi => pi.Name));
+            var headerLine = string.Join(Settings.CsvCharSeparator, plainInfoProps.Select(pi => pi.Name));
             var lines = new List<string>(new string[] { headerLine });
 
             foreach (var info in PlainInfo)
@@ -328,12 +373,12 @@ namespace StockDoctor.Core.Helper
                 string lineString = "";
                 foreach (var propInfo in plainInfoProps)
                 {
-                    lineString = $"{lineString};{propInfo.GetValue(info)}";
+                    lineString = $"{lineString}{Settings.CsvCharSeparator}{propInfo.GetValue(info)}";
                 }
                 lines.Add(lineString.Substring(1));
             }
 
-            File.WriteAllLines(CSVFileName, lines.ToArray());
+            File.WriteAllLines(Settings.OutputCsvPath + CSVFileName, lines.ToArray());
         }
 
         public static void PlanifyBuyOrderRegistry(List<BuyOrderRegistry> buyOrderRegistries, List<PlainOrderIntervalInfo> plainInfos)
@@ -379,7 +424,7 @@ namespace StockDoctor.Core.Helper
                                 End = endTimeInterval,
                                 BuyOffersAmount = buyBetweenInterval.Count,
                                 MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0,
-                                MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0
+                                MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Where(b => b.OrderPrice > 0).Select(x => x.OrderPrice).Min() : 0
 
                             };
 
@@ -389,7 +434,7 @@ namespace StockDoctor.Core.Helper
                         {
                             plainInfo.BuyOffersAmount = buyBetweenInterval.Count;
                             plainInfo.MaxBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Max() : 0;
-                            plainInfo.MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Select(x => x.OrderPrice).Min() : 0;
+                            plainInfo.MinBuyOffer = buyBetweenInterval.Any() ? buyBetweenInterval.Where(b => b.OrderPrice > 0).Select(x => x.OrderPrice).Min() : 0;
                         }
 
                         Console.Write($"\rPlanified Buy data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");

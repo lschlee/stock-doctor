@@ -46,6 +46,28 @@ namespace StockDoctor.Core
 
         public double MiddleBollingerBand { get; internal set; }
 
+        public double NormalizedClosePrice { get; set; }
+
+        public double NormalizedMediumPrice { get; internal set; }
+
+        public double NormalizedOpenPrice { get; internal set; }
+
+        public double NormalizedSMAIndicator { get; internal set; }
+
+        public double NormalizedEMAIndicator { get; internal set; }
+
+        public double NormalizedUpperBollingerBand { get; internal set; }
+
+        public double NormalizedLowerBollingerBand { get; internal set; }
+        
+        public double NormalizedMiddleBollingerBand { get; internal set; }
+        
+        public double NormalizedMaxBuyOffer { get; internal set; }
+
+        public double NormalizedMinSellOffer { get; internal set; }
+
+        public double NormalizedFirstTradePrice { get; internal set; }
+
         public int BuySignal { get; internal set; }
 
         private PropertyInfo[] _PropertyInfos = null;

@@ -53,5 +53,11 @@ namespace StockDoctor.Core.Helper
         public static int BollingerBandsPeriods => int.Parse(Configuration["BollingerBandsPeriods"]);
 
         public static int BuyTimeHold => int.Parse(Configuration["BuyTimeHold"]);
+
+        public static char CsvCharSeparator => Configuration["CsvCharSeparator"][0];
+
+        public static int PeriodsToNormalize => int.Parse(Configuration["PeriodsToNormalize"]);
+
+        public static string OutputCsvPath => Configuration["OutputCsvPath"];
     }
 }
