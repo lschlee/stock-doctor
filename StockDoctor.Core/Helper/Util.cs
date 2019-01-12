@@ -304,7 +304,7 @@ namespace StockDoctor.Core.Helper
             for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
             {
                 double SmaSUM = 0;
-                for (int j = i - Settings.RSIPeriods; j < i; j++)
+                for (int j = i - Settings.SMAPeriods; j < i; j++)
                 {
                     SmaSUM += plainInfoForDay[j].ClosePrice;
                 }
