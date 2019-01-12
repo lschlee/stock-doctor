@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using StockDoctor.Core.Attributes;
 
 namespace StockDoctor.Core.Helper
 {
@@ -474,7 +475,7 @@ namespace StockDoctor.Core.Helper
         {
             var plainInfoProps = typeof(PlainOrderIntervalInfo).GetProperties();
 
-            var headerLine = string.Join(Settings.CsvCharSeparator, plainInfoProps.Select(pi => pi.Name));
+            var headerLine = string.Join(Settings.CsvCharSeparator, plainInfoProps.Where(p => !System.Attribute.IsDefined(p, typeof(NotConsumed))).Select(pi => pi.Name));
             var lines = new List<string>(new string[] { headerLine });
 
             foreach (var info in PlainInfo)
@@ -482,7 +483,10 @@ namespace StockDoctor.Core.Helper
                 string lineString = "";
                 foreach (var propInfo in plainInfoProps)
                 {
-                    lineString = $"{lineString}{Settings.CsvCharSeparator}{propInfo.GetValue(info)}";
+                    if (!System.Attribute.IsDefined(propInfo, typeof(NotConsumed)))
+                    {
+                        lineString = $"{lineString}{Settings.CsvCharSeparator}{propInfo.GetValue(info)}";
+                    }
                 }
                 lines.Add(lineString.Substring(1));
             }
