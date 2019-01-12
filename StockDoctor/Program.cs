@@ -23,18 +23,21 @@ namespace StockDoctor
                 var availableCPADays = Directory.GetFiles(Settings.BuyFolderPath).Where(f => f.Contains(Settings.BuyFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.BuyFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
                 var availableVDADays = Directory.GetFiles(Settings.SellFolderPath).Where(f => f.Contains(Settings.SellFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.SellFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
 
-                var availableDays = availableNegDays.Intersect(availableVDADays).Intersect(availableCPADays);
+                var availableDays = availableNegDays.Intersect(availableVDADays).Intersect(availableCPADays).OrderBy(d => d);
 
                 Console.WriteLine("The current available days are:");
                 foreach (var day in availableDays)
                 {
                     Console.WriteLine(day.ToString("dd/MM/yyyy"));
                 }
-                Console.WriteLine($"Do you want to procceed and proccess these days for the stock {Settings.InstrumentSymbol}? (y/n)");
-                var yn = Console.ReadLine();
-                if (!yn.ToUpper().Trim().Equals("Y"))
+                if (false)
                 {
-                    return;
+                    Console.WriteLine($"Do you want to procceed and proccess these days for the stock {Settings.InstrumentSymbol}? (y/n)");
+                    var yn = Console.ReadLine();
+                    if (!yn.ToUpper().Trim().Equals("Y"))
+                    {
+                        return;
+                    }
                 }
 
                 foreach (var day in availableDays)
