@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Text;
+using StockDoctor.Core.Attributes;
 
 namespace StockDoctor.Core
 {
@@ -16,46 +17,63 @@ namespace StockDoctor.Core
 
         public int NegociatedOffersAmount { get; set; }
 
+        [NotConsumed]
         public double MediumPrice { get; set; }
 
+        [NotConsumed]
         public double MaxBuyOffer { get; set; }
 
+        [NotConsumed]
         public double MinBuyOffer { get; set; }
 
+        [NotConsumed]
         public double MaxSellOffer { get; set; }
 
+        [NotConsumed]
         public double MinSellOffer { get; set; }
 
         public int TotalTradedQuantity { get; set; }
 
         public double RSIIndicator { get; set; }
 
+        [NotConsumed]
         public double FirstTradePrice { get; set; }
 
+        [NotConsumed]
         public double OpenPrice { get; set; }
 
+        [NotConsumed]
         public double ClosePrice { get; set; }
 
+        [NotConsumed]
         public double SMAIndicator { get; internal set; }
 
+        [NotConsumed]
         public double EMAIndicator { get; internal set; }
 
+        [NotConsumed]
         public double UpperBollingerBand { get; internal set; }
 
+        [NotConsumed]
         public double LowerBollingerBand { get; internal set; }
 
+        [NotConsumed]
         public double MiddleBollingerBand { get; internal set; }
 
+        [NotConsumed]
         public double ShortSMAMACD { get; set; }
 
+        [NotConsumed]
         public double LongSMAMACD { get; set; }
         
+        [NotConsumed]
         public double ShortEMAMACD { get; set; }
 
+        [NotConsumed]
         public double LongEMAMACD { get; set; }
 
         public double MACD { get; set; }
-        
+
         public double AroonIndicator { get; internal set; }
 
         public double NormalizedClosePrice { get; set; }
