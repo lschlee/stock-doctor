@@ -60,6 +60,7 @@ namespace StockDoctor
                     }
                     var filesToDelete = new List<string>() { negTxtPath, sellTXTPath, buyTXTPath };
 
+                    Util.CurrentDate = day;
                     Util.ParseLineValues<NegRegistry>(negTxtPath, Util.GenericParserHandler<NegRegistry>, Util.PlanifyNegRegistry);
                     GC.Collect();
 

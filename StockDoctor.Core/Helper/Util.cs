@@ -27,6 +27,37 @@ namespace StockDoctor.Core.Helper
 
         public static string CSVFileName => $"{Settings.InstrumentSymbol}_{PlainInfo.First().Start.ToString("yyyy-MM-dd")}_{PlainInfo.Last().Start.ToString("yyyy-MM-dd")}.csv";
 
+        public static DateTime CurrentDate { get; set; }
+
+        private static Dictionary<int, char> MonthCodeMapper
+        {
+            get
+            {
+                return new Dictionary<int, char> () {
+                    {1, 'G'},
+                    {2, 'H'},
+                    {3, 'J'},
+                    {4, 'K'},
+                    {5, 'M'},
+                    {6, 'N'},
+                    {7, 'Q'},
+                    {8, 'U'},
+                    {9, 'V'},
+                    {10, 'X'},
+                    {11, 'Z'},
+                    {12, 'F'},
+                };
+            }
+        }
+
+        public static string StockCode
+        {
+            get
+            {
+                return Settings.InstrumentSymbol.ToUpper() + MonthCodeMapper[CurrentDate.Month] + CurrentDate.Year.ToString().Substring(2);
+            }
+        }
+
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -49,7 +80,7 @@ namespace StockDoctor.Core.Helper
 
                     while ((lineText = reader.ReadLine()) != null)
                     {
-                        if (lineText.Contains(Settings.InstrumentSymbol.ToUpper()))
+                        if (lineText.Contains(StockCode))
                         {
 
                             var textValues = lineText.Split(";");
