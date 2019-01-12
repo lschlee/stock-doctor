@@ -175,17 +175,66 @@ namespace StockDoctor.Core.Helper
 
         }
 
+        private static void AddAroonIndicator(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+            
+            for (int i = Settings.ArronIndicatorPeriods; i < plainInfoForDay.Count; i++)
+            {
+                
+            }
+        }
+
+        private static void AddMACDIndicator(DateTime day)
+        {
+            AddSMA(day, Settings.ShortMACDPeriods, SetShortSMAMACD);
+            AddSMA(day, Settings.LongMACDPeriods, SetLongSMAMACD);
+            AddEMA(day, Settings.ShortMACDPeriods, SetShortEMAMACD);
+            AddEMA(day, Settings.LongMACDPeriods, SetLongEMAMACD);
+
+            SetMACD(day);
+        }
+
+        private static void SetMACD(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+            foreach (var plainInfo in plainInfoForDay)
+            {
+                plainInfo.MACD = plainInfo.ShortEMAMACD - plainInfo.LongEMAMACD;
+            }
+        }
+
+        private static void SetLongSMAMACD(PlainOrderIntervalInfo plainInfo, double value)
+        {
+            plainInfo.LongSMAMACD = value;
+        }
+
+        private static void SetShortSMAMACD(PlainOrderIntervalInfo plainInfo, double value)
+        {
+            plainInfo.ShortSMAMACD = value;
+        }
+
+        private static void SetLongEMAMACD(PlainOrderIntervalInfo plainInfo, double value)
+        {
+            plainInfo.LongEMAMACD = value;
+        }
+
+        private static void SetShortEMAMACD(PlainOrderIntervalInfo plainInfo, double value)
+        {
+            plainInfo.ShortEMAMACD = value;
+        }
+
         private static void NormalizingPriceValues(DateTime day)
         {
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
             int periodsToNormalize = Settings.PeriodsToNormalize;
 
-            for (int i = 0; i < plainInfoForDay.Count - periodsToNormalize; i++)
+            for (int i = periodsToNormalize; i < plainInfoForDay.Count; i++)
             {
                 var currentPlainInfo = plainInfoForDay[i];
                 var intervalOfInterest = new List<PlainOrderIntervalInfo>();
-                for (int j = i; j < i + periodsToNormalize; j++)
+                for (int j = i - periodsToNormalize; j < i; j++)
                 {
                     intervalOfInterest.Add(plainInfoForDay[j]);
                 }
