@@ -181,11 +181,11 @@ namespace StockDoctor.Core.Helper
 
             int periodsToNormalize = Settings.PeriodsToNormalize;
 
-            for (int i = periodsToNormalize/2; i < plainInfoForDay.Count - periodsToNormalize/2; i++)
+            for (int i = 0; i < plainInfoForDay.Count - periodsToNormalize; i++)
             {
                 var currentPlainInfo = plainInfoForDay[i];
                 var intervalOfInterest = new List<PlainOrderIntervalInfo>();
-                for (int j = i - periodsToNormalize/2; j < i + periodsToNormalize/2; j++)
+                for (int j = i; j < i + periodsToNormalize; j++)
                 {
                     intervalOfInterest.Add(plainInfoForDay[j]);
                 }
