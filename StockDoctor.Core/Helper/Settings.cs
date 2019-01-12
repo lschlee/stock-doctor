@@ -42,6 +42,10 @@ namespace StockDoctor.Core.Helper
 
         public static int SMAPeriods => int.Parse(Configuration["SMAPeriods"]);
 
+        public static int ShortMACDPeriods => int.Parse(Configuration["ShortMACDPeriods"]);
+
+        public static int LongMACDPeriods => int.Parse(Configuration["LongMACDPeriods"]);
+
         public static string NegFilePrefix => Configuration["negFilePrefix"];
 
         public static string BuyFilePrefix => Configuration["buyFilePrefix"];
@@ -59,5 +63,7 @@ namespace StockDoctor.Core.Helper
         public static int PeriodsToNormalize => int.Parse(Configuration["PeriodsToNormalize"]);
 
         public static string OutputCsvPath => Configuration["OutputCsvPath"];
+
+        public static int AroonIndicatorPeriods => int.Parse(Configuration["AroonIndicatorPeriods"]);
     }
 }

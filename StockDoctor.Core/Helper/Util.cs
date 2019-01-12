@@ -194,11 +194,13 @@ namespace StockDoctor.Core.Helper
             {
                 AddMediumPrice(day);
                 AddRSIIndicator(day);
-                AddSMAIndicator(day);
-                AddEMAIndicator(day); // Needs to come after SMA calculation
+                AddSMA(day, Settings.SMAPeriods, SetSMAIndicator);
+                AddEMA(day, Settings.SMAPeriods, SetEMAIndicator); // Needs to come after SMA calculation
                 AddBollingerBandsIndicators(day);
+                AddMACDIndicator(day);
                 RemovingImpredictableData();
                 NormalizingPriceValues(day);
+                AddAroonIndicator(day);
             }
 
             SkippingUncalculatedIndicators();
@@ -211,9 +213,25 @@ namespace StockDoctor.Core.Helper
         {
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
             
-            for (int i = Settings.ArronIndicatorPeriods; i < plainInfoForDay.Count; i++)
+            double aroonPeriods = Settings.AroonIndicatorPeriods;
+
+            for (int i = (int)aroonPeriods; i < plainInfoForDay.Count; i++)
             {
-                
+                var currentPlainInfo = plainInfoForDay[i];
+                var intervalOfInterest = new List<PlainOrderIntervalInfo>();
+                for (int j = i - (int)aroonPeriods; j < i; j++)
+                {
+                    intervalOfInterest.Add(plainInfoForDay[j]);
+                }
+                List<double> closePrices = intervalOfInterest.Select(x => (double)x.NormalizedClosePrice).ToList();
+                double maxIndex = closePrices.IndexOf(closePrices.Max());
+                double minIndex = closePrices.IndexOf(closePrices.Min());
+
+                var aroonUp = ((aroonPeriods - (aroonPeriods - maxIndex))/aroonPeriods)*100;
+                var aroonDown = ((aroonPeriods - (aroonPeriods - minIndex))/aroonPeriods)*100;
+
+                currentPlainInfo.AroonIndicator = aroonUp - aroonDown;
+
             }
         }
 
@@ -302,7 +320,7 @@ namespace StockDoctor.Core.Helper
 
         private static void SkippingUncalculatedIndicators()
         {
-            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0).ToList();
+            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0 && p.LongEMAMACD > 0).ToList();
         }
 
         private static void RemovingImpredictableData()
@@ -378,36 +396,46 @@ namespace StockDoctor.Core.Helper
             }
         }
 
-        public static void AddSMAIndicator(DateTime day)
+        public static void AddSMA(DateTime day, int periods, Action<PlainOrderIntervalInfo, double> SMAHandler)
         {
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
-            for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
+            for (int i = periods; i < plainInfoForDay.Count; i++)
             {
                 double SmaSUM = 0;
-                for (int j = i - Settings.SMAPeriods; j < i; j++)
+                for (int j = i - periods; j < i; j++)
                 {
                     SmaSUM += plainInfoForDay[j].ClosePrice;
                 }
-                plainInfoForDay[i].SMAIndicator = SmaSUM/ Settings.SMAPeriods;
+                var value  = SmaSUM/ periods;
+                SMAHandler(plainInfoForDay[i], value);
             }
         }
 
-        public static void AddEMAIndicator(DateTime day)
+        public static void SetSMAIndicator(PlainOrderIntervalInfo plainInfo, double value) {
+            plainInfo.SMAIndicator = value;
+        }
+
+        public static void AddEMA(DateTime day, int periods, Action<PlainOrderIntervalInfo, double> EMAHandler)
         {
 
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
-            for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
+            for (int i = periods; i < plainInfoForDay.Count; i++)
             {
-                double K = 2.0 / (Settings.SMAPeriods + 1.0);
+                double K = 2.0 / (periods + 1.0);
 
                 var lastPeriod = plainInfoForDay[i - 1];
+                var value = i == periods ? plainInfoForDay[i].SMAIndicator : (K * (plainInfoForDay[i].ClosePrice - lastPeriod.EMAIndicator)) + lastPeriod.EMAIndicator;
 
-                plainInfoForDay[i].EMAIndicator = i == Settings.SMAPeriods? plainInfoForDay[i].SMAIndicator : (K * (plainInfoForDay[i].ClosePrice - lastPeriod.EMAIndicator)) + lastPeriod.EMAIndicator;
+                EMAHandler(plainInfoForDay[i], value);
 
             }
         }
+
+        public static void SetEMAIndicator(PlainOrderIntervalInfo plainInfo, double value) {
+            plainInfo.EMAIndicator = value;
+        } 
 
         public static void AddBollingerBandsIndicators(DateTime day)
         {

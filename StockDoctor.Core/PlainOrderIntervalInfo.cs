@@ -46,6 +46,18 @@ namespace StockDoctor.Core
 
         public double MiddleBollingerBand { get; internal set; }
 
+        public double ShortSMAMACD { get; set; }
+
+        public double LongSMAMACD { get; set; }
+        
+        public double ShortEMAMACD { get; set; }
+
+        public double LongEMAMACD { get; set; }
+
+        public double MACD { get; set; }
+        
+        public double AroonIndicator { get; internal set; }
+
         public double NormalizedClosePrice { get; set; }
 
         public double NormalizedMediumPrice { get; internal set; }
@@ -67,6 +79,7 @@ namespace StockDoctor.Core
         public double NormalizedMinSellOffer { get; internal set; }
 
         public double NormalizedFirstTradePrice { get; internal set; }
+        
 
         public int BuySignal { get; internal set; }
 
