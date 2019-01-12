@@ -306,7 +306,8 @@ namespace StockDoctor.Core.Helper
 
         private static double NormalizeValue(double currentValue, List<PlainOrderIntervalInfo> intervalOfInterest, Func<PlainOrderIntervalInfo, double> p)
         {
-            var values = intervalOfInterest.Select(p);
+            var values = intervalOfInterest.Select(p).ToList();
+            values.Add(currentValue);
             var maxValue = values.Max();
             var minValue = values.Min();
             var diffMaxMin = maxValue - minValue;
