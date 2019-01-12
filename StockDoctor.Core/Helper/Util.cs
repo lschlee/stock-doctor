@@ -66,9 +66,10 @@ namespace StockDoctor.Core.Helper
             var fileName = fileRelativePath.Split("\\").Last();
             var tempList = new List<T>();
 
-            using (FileStream fileStream = new FileStream(fileRelativePath, FileMode.Open))
+            using (FileStream fileStream = new FileStream(fileRelativePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                using (StreamReader reader = new StreamReader(fileStream))
+                using (BufferedStream bs = new BufferedStream(fileStream))
+                using (StreamReader reader = new StreamReader(bs))
                 {
                     var currentLine = 0;
                     var totalLines = int.Parse(reader.ReadLine().Split(" ").Last());
