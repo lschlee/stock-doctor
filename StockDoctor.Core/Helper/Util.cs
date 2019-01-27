@@ -464,9 +464,9 @@ namespace StockDoctor.Core.Helper
                 }
                 var stardardDeviation = Math.Sqrt(squaredDiff / (Settings.BollingerBandsPeriods - 1));
 
-                plainInfoForDay[i].UpperBollingerBand = SMA + (2 * stardardDeviation);
-                plainInfoForDay[i].LowerBollingerBand = SMA - (2 * stardardDeviation);
-                plainInfoForDay[i].MiddleBollingerBand = SMA;
+                plainInfoForDay[i].UpperBollingerBand = SMA + (2 * stardardDeviation) - plainInfoForDay[i].ClosePrice;
+                plainInfoForDay[i].LowerBollingerBand = SMA - (2 * stardardDeviation) - plainInfoForDay[i].ClosePrice;
+                plainInfoForDay[i].MiddleBollingerBand = SMA - plainInfoForDay[i].ClosePrice;
 
             }
         }
