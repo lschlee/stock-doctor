@@ -71,5 +71,8 @@ namespace StockDoctor.Core.Helper
         public static bool InterpolateWindows => bool.Parse(Configuration["InterpolateWindows"]);
 
         public static bool IndexStockCodeVariation => bool.Parse(Configuration["IndexStockCodeVariation"]);
+
+        public static int ATRPeriods => int.Parse(Configuration["ATRPeriods"]);
+        
     }
 }
