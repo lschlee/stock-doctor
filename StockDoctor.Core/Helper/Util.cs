@@ -326,7 +326,7 @@ namespace StockDoctor.Core.Helper
 
         private static void SkippingUncalculatedIndicators()
         {
-            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0 && p.LongEMAMACD > 0).ToList();
+            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0 && p.LongEMAMACD != 0 && p.AroonIndicator != 0).ToList();
         }
 
         private static void RemovingImpredictableData()
