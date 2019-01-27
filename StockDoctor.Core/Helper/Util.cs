@@ -55,7 +55,11 @@ namespace StockDoctor.Core.Helper
         {
             get
             {
-                return Settings.InstrumentSymbol.ToUpper() + MonthCodeMapper[CurrentDate.Month] + CurrentDate.Year.ToString().Substring(2);
+                if (Settings.IndexStockCodeVariation)
+                {
+                    return Settings.InstrumentSymbol.ToUpper() + MonthCodeMapper[CurrentDate.Month] + (CurrentDate.Month == 12? CurrentDate.Year + 1 : CurrentDate.Year).ToString().Substring(2);
+                }
+                return Settings.InstrumentSymbol.ToUpper();
             }
         }
 
@@ -580,7 +584,16 @@ namespace StockDoctor.Core.Helper
                 }
             }
 
-            for (int i = 0; i < endIndexIntervals.Count; i++)
+            var interpolationPace = 0;
+            if (Settings.InterpolateWindows)
+            {
+                interpolationPace = 1;
+            } else
+            {
+                interpolationPace = Settings.SlidingWindowMinutes;
+            }
+        
+            for (int i = 0; i < endIndexIntervals.Count; i = i + interpolationPace)
             {
                 if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)
                 {

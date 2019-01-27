@@ -65,5 +65,11 @@ namespace StockDoctor.Core.Helper
         public static string OutputCsvPath => Configuration["OutputCsvPath"];
 
         public static int AroonIndicatorPeriods => int.Parse(Configuration["AroonIndicatorPeriods"]);
+
+        public static bool ConsiderOrderFiles => bool.Parse(Configuration["ConsiderOrderFiles"]);
+
+        public static bool InterpolateWindows => bool.Parse(Configuration["InterpolateWindows"]);
+
+        public static bool IndexStockCodeVariation => bool.Parse(Configuration["IndexStockCodeVariation"]);
     }
 }

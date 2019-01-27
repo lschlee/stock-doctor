@@ -23,7 +23,13 @@ namespace StockDoctor
                 var availableCPADays = Directory.GetFiles(Settings.BuyFolderPath).Where(f => f.Contains(Settings.BuyFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.BuyFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
                 var availableVDADays = Directory.GetFiles(Settings.SellFolderPath).Where(f => f.Contains(Settings.SellFilePrefix) && f.ToUpper().EndsWith(".ZIP")).Select(d => DateTime.ParseExact(d.Split(Settings.SellFilePrefix)[1].Split(".zip")[0], Settings.DateSuffixFormat, null));
 
-                var availableDays = availableNegDays.Intersect(availableVDADays).Intersect(availableCPADays).OrderBy(d => d);
+                var availableDays = availableNegDays;
+                
+                if (Settings.ConsiderOrderFiles)
+                {
+                    availableDays = availableDays.Intersect(availableVDADays).Intersect(availableCPADays);
+                }
+                availableDays = availableDays.OrderBy(d => d); 
 
                 Console.WriteLine("The current available days are:");
                 foreach (var day in availableDays)
@@ -53,7 +59,11 @@ namespace StockDoctor
                     var sellZipPath = sellfileName + ".zip";
                     var sellTXTPath = sellfileName + ".TXT";
 
-                    var zipsToExtract = new List<string>() { negZipPath, sellZipPath, buyZipPath };
+                    var zipsToExtract = new List<string>() { negZipPath};
+                    if (Settings.ConsiderOrderFiles)
+                    {
+                        zipsToExtract.AddRange(new string[] {buyZipPath, sellZipPath});
+                    }
                     foreach (var zipFile in zipsToExtract)
                     {
                         Console.WriteLine($"Extracting {zipFile}...");
@@ -61,17 +71,21 @@ namespace StockDoctor
                         ZipFile.ExtractToDirectory(zipFile, resultFolderPath);
 
                     }
-                    var filesToDelete = new List<string>() { negTxtPath, sellTXTPath, buyTXTPath };
+                    var filesToDelete = new List<string>() { negTxtPath };
 
                     Util.CurrentDate = day;
                     Util.ParseLineValues<NegRegistry>(negTxtPath, Util.GenericParserHandler<NegRegistry>, Util.PlanifyNegRegistry);
                     GC.Collect();
 
-                    Util.ParseLineValues<BuyOrderRegistry>(buyTXTPath, Util.GenericParserHandler<BuyOrderRegistry>, Util.PlanifyBuyOrderRegistry);
-                    GC.Collect();
+                    if (Settings.ConsiderOrderFiles)
+                    {
+                        filesToDelete.AddRange(new string[] { sellTXTPath, buyTXTPath });
+                        Util.ParseLineValues<BuyOrderRegistry>(buyTXTPath, Util.GenericParserHandler<BuyOrderRegistry>, Util.PlanifyBuyOrderRegistry);
+                        GC.Collect();
 
-                    Util.ParseLineValues<SellOrderRegistry>(sellTXTPath, Util.GenericParserHandler<SellOrderRegistry>, Util.PlanifySellOrderRegistry);
-                    GC.Collect();
+                        Util.ParseLineValues<SellOrderRegistry>(sellTXTPath, Util.GenericParserHandler<SellOrderRegistry>, Util.PlanifySellOrderRegistry);
+                        GC.Collect();
+                    }
 
                     foreach (var filePath in filesToDelete)
                     {
