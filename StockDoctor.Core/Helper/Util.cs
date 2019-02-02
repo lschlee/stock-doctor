@@ -63,6 +63,8 @@ namespace StockDoctor.Core.Helper
             }
         }
 
+        public static Dictionary<DateTime, double> ClosePricesMap { get; set; }
+
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -203,7 +205,6 @@ namespace StockDoctor.Core.Helper
                 AddEMA(x => x.SMAIndicator, x=> x.ClosePrice, x => x.EMAIndicator, day, Settings.SMAPeriods, SetEMAIndicator); // Needs to come after SMA calculation
                 AddBollingerBandsIndicators(day);
                 AddMACDIndicator(day);
-                RemovingImpredictableData();
                 NormalizingPriceValues(day);
                 AddAroonIndicator(day);
                 AddATR(day);
@@ -213,15 +214,81 @@ namespace StockDoctor.Core.Helper
                 AddEMA(x => x.SMAPlusDM, x => x.PlusDM, x => x.EMAPlusDMIndicator, day, Settings.ATRPeriods, SetEMAPlusDM);
                 AddEMA(x => x.SMAMinusDM, x => x.MinusDM, x => x.EMAMinusDMIndicator, day, Settings.ATRPeriods, SetEMAMinusDM);
                 AddDI(day);
-                AddSMA(x => x.AbsoluteDiffDI, day, Settings.ATRPeriods, SetSMADiffDI);
-                AddEMA(x => x.SMADiffDI, x=> x.AbsoluteDiffDI, x => x.EMADiffDIIndicator, day, Settings.ATRPeriods, SetEMADiffDI);
+                AddSMA(x => x.AbsoluteDiffDI, day, Settings.ATRPeriods, SetSMADiffDI, startingPoint: Settings.ATRPeriods);
+                AddEMA(x => x.SMADiffDI, x=> x.AbsoluteDiffDI, x => x.EMADiffDIIndicator, day, Settings.ATRPeriods, SetEMADiffDI, startingPoint: Settings.ATRPeriods);
                 AddADX(day);
+                AddCCI(day);
+                AddCMO(day);
+                AddROC(day);
             }
 
             SkippingUncalculatedIndicators();
             SetBuySignal(PlainInfo);
-            RemovingImpredictableData();
 
+        }
+
+        private static void AddROC(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.ROCPeriods; i < plainInfoForDay.Count; i++)
+            {
+                plainInfoForDay[i].ROC = (plainInfoForDay[i].ClosePrice - plainInfoForDay[i - Settings.ROCPeriods].ClosePrice) / plainInfoForDay[i - Settings.ROCPeriods].ClosePrice * 100.0;
+            }
+        }
+
+        private static void AddCMO(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.CMOPeriods; i < plainInfoForDay.Count; i++)
+            {
+                var periodOfInterest = new List<PlainOrderIntervalInfo>();
+                for (int j = i - Settings.CMOPeriods; j < i; j++)
+                {
+                    periodOfInterest.Add(plainInfoForDay[j]);
+                }
+
+                var upSum = periodOfInterest.Select(p => plainInfoForDay[i].ClosePrice - p.ClosePrice).Where(x => x > 0).Sum();
+                var downSum = periodOfInterest.Select(p => p.ClosePrice - plainInfoForDay[i].ClosePrice).Where(x => x > 0).Sum();
+
+                plainInfoForDay[i].CMO = 100.0 * ((upSum - downSum)/(upSum + downSum));
+
+            }
+        }
+
+        private static void AddCCI(DateTime day)
+        {
+            var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
+
+            for (int i = Settings.SMAPeriods; i < plainInfoForDay.Count; i++)
+            {
+                double Sum = 0;
+                var periodOfInterest = new List<PlainOrderIntervalInfo>();
+                for (int j = i - Settings.SMAPeriods; j < i; j++)
+                {
+                    periodOfInterest.Add(plainInfoForDay[j]);
+                }
+                Sum = periodOfInterest.Select(x => x.ClosePrice).Sum();
+                var SMA = Sum / Settings.SMAPeriods;
+
+                //double squaredDiff = 0;
+                //for (int j = i - Settings.SMAPeriods; j < i; j++)
+                //{
+                //    squaredDiff += Math.Pow(plainInfoForDay[j].ClosePrice - SMA, 2);
+                //}
+                double squaredDiff = periodOfInterest.Select(x => Math.Pow(x.ClosePrice - SMA, 2)).Sum();
+                var stardardDeviation = Math.Sqrt(squaredDiff / (Settings.SMAPeriods - 1));
+
+                var high = periodOfInterest.Select(x => x.High).Max();
+                var low = periodOfInterest.Select(x => x.Low).Min();
+                var close = periodOfInterest.Select(x => x.ClosePrice).Last();
+
+                var TP = new List<double> { high, low, close }.Sum() / 3.0;
+
+                plainInfoForDay[i].CCI = (TP - SMA) / (0.015 * stardardDeviation);
+
+            }
         }
 
         private static void AddADX(DateTime day)
@@ -229,9 +296,9 @@ namespace StockDoctor.Core.Helper
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
             var ATRPeriods = Settings.ATRPeriods;
 
-            for (int i = ATRPeriods; i < plainInfoForDay.Count; i++)
+            for (int i = 2 * ATRPeriods; i < plainInfoForDay.Count; i++)
             {
-                plainInfoForDay[i].ADXIndicator = (100 * plainInfoForDay[i].EMADiffDIIndicator) / (plainInfoForDay[i].PlusDI - plainInfoForDay[i].MinusDI);
+                plainInfoForDay[i].ADXIndicator = (100 * plainInfoForDay[i].EMADiffDIIndicator) / (plainInfoForDay[i].PlusDirectionalIndicator + plainInfoForDay[i].MinusDirectionalIndicator);
             }
         }
 
@@ -272,9 +339,9 @@ namespace StockDoctor.Core.Helper
 
             for (int i = ATRPeriods; i < plainInfoForDay.Count; i++)
             {
-                plainInfoForDay[i].PlusDI = (plainInfoForDay[i].EMAPlusDMIndicator * 100)/(plainInfoForDay[i].ATRIndicator);
-                plainInfoForDay[i].MinusDI = (plainInfoForDay[i].EMAMinusDMIndicator * 100)/(plainInfoForDay[i].ATRIndicator);
-                plainInfoForDay[i].AbsoluteDiffDI = Math.Abs(plainInfoForDay[i].PlusDI = plainInfoForDay[i].MinusDI);
+                plainInfoForDay[i].PlusDirectionalIndicator = (plainInfoForDay[i].EMAPlusDMIndicator * 100)/(plainInfoForDay[i].ATRIndicator);
+                plainInfoForDay[i].MinusDirectionalIndicator = (plainInfoForDay[i].EMAMinusDMIndicator * 100)/(plainInfoForDay[i].ATRIndicator);
+                plainInfoForDay[i].AbsoluteDiffDI = Math.Abs(plainInfoForDay[i].PlusDirectionalIndicator - plainInfoForDay[i].MinusDirectionalIndicator);
             }
         }
 
@@ -286,9 +353,8 @@ namespace StockDoctor.Core.Helper
         private static void AddDM(DateTime day)
         {
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
-            var ATRPeriods = Settings.ATRPeriods;
 
-            for (int i = ATRPeriods; i < plainInfoForDay.Count; i++)
+            for (int i = 1; i < plainInfoForDay.Count; i++)
             {
                 var upMove = plainInfoForDay[i].High - plainInfoForDay[i -1].High;
                 var downMove = plainInfoForDay[i - 1].Low - plainInfoForDay[i].Low;
@@ -310,27 +376,30 @@ namespace StockDoctor.Core.Helper
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
             var ATRPeriods = Settings.ATRPeriods;
-            
-            var firstTRInterval = plainInfoForDay.GetRange(0, ATRPeriods);
-            var TRlist = new List<double>();
-            for (int i = 0; i < firstTRInterval.Count; i++)
-            {
-                double max = 0;
-                if (i == 0)
-                {
-                    max = firstTRInterval[i].High - firstTRInterval[i].Low;
-                } else
-                {
-                    max = GetTR(firstTRInterval, i);
-                }
-                TRlist.Add(max);
-            }
-            double lastATR = TRlist.Sum()/(double)TRlist.Count;
 
-            for (int i = ATRPeriods; i < plainInfoForDay.Count; i++)
+            if (plainInfoForDay.Count >= ATRPeriods)
             {
-                plainInfoForDay[i].ATRIndicator = ( (lastATR * (double)(ATRPeriods - 1)) + GetTR(plainInfoForDay, i))/((double)ATRPeriods);
-                lastATR = plainInfoForDay[i].ATRIndicator;
+                var firstTRInterval = plainInfoForDay.GetRange(0, ATRPeriods);
+                var TRlist = new List<double>();
+                for (int i = 0; i < firstTRInterval.Count; i++)
+                {
+                    double max = 0;
+                    if (i == 0)
+                    {
+                        max = firstTRInterval[i].High - firstTRInterval[i].Low;
+                    } else
+                    {
+                        max = GetTR(firstTRInterval, i);
+                    }
+                    TRlist.Add(max);
+                }
+                double lastATR = TRlist.Sum()/(double)TRlist.Count;
+
+                for (int i = ATRPeriods; i < plainInfoForDay.Count; i++)
+                {
+                    plainInfoForDay[i].ATRIndicator = ( (lastATR * (double)(ATRPeriods - 1)) + GetTR(plainInfoForDay, i))/((double)ATRPeriods);
+                    lastATR = plainInfoForDay[i].ATRIndicator;
+                }
             }
 
 
@@ -360,13 +429,15 @@ namespace StockDoctor.Core.Helper
                 {
                     intervalOfInterest.Add(plainInfoForDay[j]);
                 }
-                List<double> closePrices = intervalOfInterest.Select(x => (double)x.NormalizedClosePrice).ToList();
+                List<double> closePrices = intervalOfInterest.Select(x => (double)x.ClosePrice).ToList();
                 double maxIndex = closePrices.IndexOf(closePrices.Max());
                 double minIndex = closePrices.IndexOf(closePrices.Min());
 
-                var aroonUp = ((aroonPeriods - (aroonPeriods - maxIndex))/aroonPeriods)*100;
-                var aroonDown = ((aroonPeriods - (aroonPeriods - minIndex))/aroonPeriods)*100;
+                var aroonUp = ((aroonPeriods - (aroonPeriods - maxIndex) + 1)/aroonPeriods)*100;
+                var aroonDown = ((aroonPeriods - (aroonPeriods - minIndex) + 1)/aroonPeriods)*100;
 
+                currentPlainInfo.AroonUpIndicator = aroonUp;
+                currentPlainInfo.AroonDownIndicator = aroonDown;
                 currentPlainInfo.AroonIndicator = aroonUp - aroonDown;
 
             }
@@ -458,7 +529,7 @@ namespace StockDoctor.Core.Helper
 
         private static void SkippingUncalculatedIndicators()
         {
-            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand > 0 && p.SMAIndicator > 0 && p.LongEMAMACD != 0 && p.AroonIndicator != 0).ToList();
+            PlainInfo = PlainInfo.Where(p => p.RSIIndicator > 0 && p.MiddleBollingerBand != 0 && p.SMAIndicator != 0 && p.LongEMAMACD != 0 && p.AroonIndicator != 0).ToList();
         }
 
         private static void RemovingImpredictableData()
@@ -472,10 +543,15 @@ namespace StockDoctor.Core.Helper
             {
                 try
                 {
-                    if (planInfo[i + Settings.SlidingWindowMinutes + Settings.BuyTimeHold].OpenPrice - planInfo[i + Settings.SlidingWindowMinutes].OpenPrice > 0 )
+                    if (ClosePricesMap[planInfo[i].End.AddMinutes(Settings.BuyTimeHold)] - planInfo[i].ClosePrice > 0)
                     {
                         planInfo[i].BuySignal = 1;
                     }
+
+                    //if (planInfo[i + Settings.SlidingWindowMinutes + Settings.BuyTimeHold].OpenPrice - planInfo[i + Settings.SlidingWindowMinutes].OpenPrice > 0 )
+                    //{
+                    //    planInfo[i].BuySignal = 1;
+                    //}
                 }
                 catch (SystemException)
                 {
@@ -534,11 +610,11 @@ namespace StockDoctor.Core.Helper
             }
         }
 
-        public static void AddSMA(Func<PlainOrderIntervalInfo, double> lambda, DateTime day, int periods, Action<PlainOrderIntervalInfo, double> SMAHandler)
+        public static void AddSMA(Func<PlainOrderIntervalInfo, double> lambda, DateTime day, int periods, Action<PlainOrderIntervalInfo, double> SMAHandler, int startingPoint = 0)
         {
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
-            for (int i = periods; i < plainInfoForDay.Count; i++)
+            for (int i = periods + startingPoint; i < plainInfoForDay.Count; i++)
             {
                 double SmaSUM = 0;
                 for (int j = i - periods; j < i; j++)
@@ -551,22 +627,23 @@ namespace StockDoctor.Core.Helper
         }
 
         public static void SetSMAIndicator(PlainOrderIntervalInfo plainInfo, double value) {
-            plainInfo.SMAIndicator = value - plainInfo.ClosePrice;;
+            plainInfo.SMAIndicator = value;
+            plainInfo.SMAIndicatorDiff = plainInfo.ClosePrice - value;
         }
 
-        public static void AddEMA(Func<PlainOrderIntervalInfo, double> baseSMA, Func<PlainOrderIntervalInfo, double> baseColumn, Func<PlainOrderIntervalInfo, double> resultEMAColumn, DateTime day, int periods, Action<PlainOrderIntervalInfo, double> EMAHandler)
+        public static void AddEMA(Func<PlainOrderIntervalInfo, double> baseSMA, Func<PlainOrderIntervalInfo, double> baseColumn, Func<PlainOrderIntervalInfo, double> resultEMAColumn, DateTime day, int periods, Action<PlainOrderIntervalInfo, double> EMAHandler, int startingPoint = 0)
         {
 
             var plainInfoForDay = PlainInfo.Where(d => d.Start.ToString("yyyyMMdd").Equals(day.ToString("yyyyMMdd"))).ToList();
 
-            for (int i = periods; i < plainInfoForDay.Count; i++)
+            for (int i = periods + startingPoint; i < plainInfoForDay.Count; i++)
             {
                 double K = 2.0 / (periods + 1.0);
 
                 var lastPeriod = plainInfoForDay[i - 1];
                 var currentInterval = plainInfoForDay.GetRange(i,1);
                 var lastEMA = plainInfoForDay.GetRange(i - 1,1).Select(resultEMAColumn).First();
-                var value = i == periods ? currentInterval.Select(baseSMA).First() : (K * (currentInterval.Select(baseColumn).First() - lastEMA)) + lastEMA;
+                var value = i == periods + startingPoint ? currentInterval.Select(baseSMA).First() : (K * (currentInterval.Select(baseColumn).First() - lastEMA)) + lastEMA;
 
                 EMAHandler(plainInfoForDay[i], value);
 
@@ -574,7 +651,8 @@ namespace StockDoctor.Core.Helper
         }
 
         public static void SetEMAIndicator(PlainOrderIntervalInfo plainInfo, double value) {
-            plainInfo.EMAIndicator = value - plainInfo.ClosePrice;;
+            plainInfo.EMAIndicator = value;
+            plainInfo.EMAIndicatorDiff = plainInfo.ClosePrice - value;
         } 
 
         public static void AddBollingerBandsIndicators(DateTime day)
@@ -726,7 +804,19 @@ namespace StockDoctor.Core.Helper
             {
                 interpolationPace = Settings.SlidingWindowMinutes;
             }
-        
+
+            for (int i = 0; i < endIndexIntervals.Count - Settings.SlidingWindowMinutes; i++)
+            {
+                var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
+                var endTimeInterval = new DateTime(negBetweenInterval.Last().TradeTime.Year, negBetweenInterval.Last().TradeTime.Month, negBetweenInterval.Last().TradeTime.Day, negBetweenInterval.Last().TradeTime.Hour, negBetweenInterval.Last().TradeTime.Minute, 0).AddMinutes(1);
+
+                if (!ClosePricesMap.ContainsKey(endTimeInterval))
+                {
+                    ClosePricesMap.Add(endTimeInterval, negBetweenInterval.Last().TradePrice);
+                }
+
+            }
+
             for (int i = 0; i < endIndexIntervals.Count; i = i + interpolationPace)
             {
                 if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)

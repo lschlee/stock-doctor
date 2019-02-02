@@ -46,6 +46,7 @@ namespace StockDoctor
                     }
                 }
 
+                Util.ClosePricesMap = new Dictionary<DateTime, double>();
                 foreach (var day in availableDays)
                 {
                     var dateString = day.ToString(Settings.DateSuffixFormat);
@@ -73,6 +74,7 @@ namespace StockDoctor
                     }
                     var filesToDelete = new List<string>() { negTxtPath };
 
+                    
                     Util.CurrentDate = day;
                     Util.ParseLineValues<NegRegistry>(negTxtPath, Util.GenericParserHandler<NegRegistry>, Util.PlanifyNegRegistry);
                     GC.Collect();

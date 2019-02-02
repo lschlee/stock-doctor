@@ -47,9 +47,15 @@ namespace StockDoctor.Core
         [NotConsumed]
         public double ClosePrice { get; set; }
 
+        [NotConsumed]
         public double SMAIndicator { get; internal set; }
 
+        [NotConsumed]
         public double EMAIndicator { get; internal set; }
+
+        public double SMAIndicatorDiff { get; internal set; }
+
+        public double EMAIndicatorDiff { get; internal set; }
 
         public double UpperBollingerBand { get; internal set; }
 
@@ -62,7 +68,7 @@ namespace StockDoctor.Core
 
         [NotConsumed]
         public double LongSMAMACD { get; set; }
-        
+
         [NotConsumed]
         public double ShortEMAMACD { get; set; }
 
@@ -71,13 +77,19 @@ namespace StockDoctor.Core
 
         public double MACD { get; set; }
 
+        public double AroonUpIndicator { get; internal set; }
+
+        public double AroonDownIndicator { get; internal set; }
+
         public double AroonIndicator { get; internal set; }
 
+        [NotConsumed]
         public double NormalizedClosePrice { get; set; }
 
         [NotConsumed]
         public double NormalizedMediumPrice { get; internal set; }
 
+        [NotConsumed]
         public double NormalizedOpenPrice { get; internal set; }
 
         [NotConsumed]
@@ -91,10 +103,10 @@ namespace StockDoctor.Core
 
         [NotConsumed]
         public double NormalizedLowerBollingerBand { get; internal set; }
-        
+
         [NotConsumed]
         public double NormalizedMiddleBollingerBand { get; internal set; }
-        
+
         [NotConsumed]
         public double NormalizedMaxBuyOffer { get; internal set; }
 
@@ -103,39 +115,57 @@ namespace StockDoctor.Core
 
         [NotConsumed]
         public double NormalizedFirstTradePrice { get; internal set; }
-        
+
 
         [NotConsumed]
         public double High { get; internal set; }
+
         [NotConsumed]
         public double Low { get; internal set; }
+
         [NotConsumed]
         public double ATRIndicator { get; internal set; }
+
         [NotConsumed]
         public double PlusDM { get; internal set; }
+
         [NotConsumed]
         public double MinusDM { get; internal set; }
+
         [NotConsumed]
         public double SMAPlusDM { get; internal set; }
+
         [NotConsumed]
         public double SMAMinusDM { get; internal set; }
+
         [NotConsumed]
         public double EMAPlusDMIndicator { get; internal set; }
+
         [NotConsumed]
         public double EMAMinusDMIndicator { get; internal set; }
-        [NotConsumed]
-        public double PlusDI { get; internal set; }
-        [NotConsumed]
-        public double MinusDI { get; internal set; }
+
+        public double PlusDirectionalIndicator { get; internal set; }
+
+        public double MinusDirectionalIndicator { get; internal set; }
+
         [NotConsumed]
         public double AbsoluteDiffDI { get; internal set; }
+
         [NotConsumed]
         public double SMADiffDI { get; internal set; }
-        [NotConsumed]
-        public double EMADiffDIIndicator { get; internal set; }
-        public double ADXIndicator { get; internal set; }
-        public int BuySignal { get; internal set; }
 
+        [NotConsumed]
+        public double EMADiffDIIndicator { get; set; }
+
+        public double ADXIndicator { get; set; }
+
+        public double CCI { get; internal set; }
+
+        public double CMO { get; internal set; }
+
+        public double ROC { get; internal set; }
+
+        public int BuySignal { get; set; }
 
         private PropertyInfo[] _PropertyInfos = null;
 

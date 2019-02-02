@@ -73,6 +73,10 @@ namespace StockDoctor.Core.Helper
         public static bool IndexStockCodeVariation => bool.Parse(Configuration["IndexStockCodeVariation"]);
 
         public static int ATRPeriods => int.Parse(Configuration["ATRPeriods"]);
-        
+
+        public static int CMOPeriods => int.Parse(Configuration["CMOPeriods"]);
+
+        public static int ROCPeriods => int.Parse(Configuration["ROCPeriods"]);
+
     }
 }
