@@ -64,6 +64,7 @@ namespace StockDoctor.Core.Helper
         }
 
         public static Dictionary<DateTime, double> ClosePricesMap { get; set; }
+        public static Dictionary<DateTime, double> HighPricesMap { get; set; }
 
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
@@ -233,8 +234,28 @@ namespace StockDoctor.Core.Helper
 
             for (int i = Settings.ROCPeriods; i < plainInfoForDay.Count; i++)
             {
-                plainInfoForDay[i].ROC = (plainInfoForDay[i].ClosePrice - plainInfoForDay[i - Settings.ROCPeriods].ClosePrice) / plainInfoForDay[i - Settings.ROCPeriods].ClosePrice * 100.0;
+                var previousCloseTime = plainInfoForDay[i].End.Subtract(new TimeSpan(0, Settings.ROCPeriods, 0));
+                double pastClosePrice = GetClosePrice(previousCloseTime);
+                plainInfoForDay[i].ROC = (plainInfoForDay[i].ClosePrice - pastClosePrice) / pastClosePrice * 100.0;
             }
+        }
+
+        private static double GetClosePrice(DateTime closeTime)
+        {
+            if (ClosePricesMap.ContainsKey(closeTime))
+            {
+                return ClosePricesMap[closeTime];
+            }
+            return GetClosePrice(closeTime.Subtract(new TimeSpan(0, 1, 0)));
+        }
+
+        private static double GetMaxPrice(DateTime closeTime)
+        {
+            if (HighPricesMap.ContainsKey(closeTime))
+            {
+                return HighPricesMap[closeTime];
+            }
+            return GetMaxPrice(closeTime.Subtract(new TimeSpan(0, 1, 0)));
         }
 
         private static void AddCMO(DateTime day)
@@ -543,15 +564,10 @@ namespace StockDoctor.Core.Helper
             {
                 try
                 {
-                    if (ClosePricesMap[planInfo[i].End.AddMinutes(Settings.BuyTimeHold)] - planInfo[i].ClosePrice > 0)
+                    if (GetMaxPrice(planInfo[i].End.AddMinutes(1)) - planInfo[i].ClosePrice > Settings.MinimumVariationOfInterest)
                     {
                         planInfo[i].BuySignal = 1;
                     }
-
-                    //if (planInfo[i + Settings.SlidingWindowMinutes + Settings.BuyTimeHold].OpenPrice - planInfo[i + Settings.SlidingWindowMinutes].OpenPrice > 0 )
-                    //{
-                    //    planInfo[i].BuySignal = 1;
-                    //}
                 }
                 catch (SystemException)
                 {
@@ -807,12 +823,17 @@ namespace StockDoctor.Core.Helper
 
             for (int i = 0; i < endIndexIntervals.Count - Settings.SlidingWindowMinutes; i++)
             {
-                var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
-                var endTimeInterval = new DateTime(negBetweenInterval.Last().TradeTime.Year, negBetweenInterval.Last().TradeTime.Month, negBetweenInterval.Last().TradeTime.Day, negBetweenInterval.Last().TradeTime.Hour, negBetweenInterval.Last().TradeTime.Minute, 0).AddMinutes(1);
+                var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i]);
+                var endTimeInterval = new DateTime(negBetweenInterval.Last().TradeTime.Year, negBetweenInterval.Last().TradeTime.Month, negBetweenInterval.Last().TradeTime.Day, negBetweenInterval.Last().TradeTime.Hour, negBetweenInterval.Last().TradeTime.Minute, 0);
 
                 if (!ClosePricesMap.ContainsKey(endTimeInterval))
                 {
                     ClosePricesMap.Add(endTimeInterval, negBetweenInterval.Last().TradePrice);
+                }
+
+                if (!HighPricesMap.ContainsKey(endTimeInterval))
+                {
+                    HighPricesMap.Add(endTimeInterval, negBetweenInterval.Select(n => n.TradePrice).Max());
                 }
 
             }

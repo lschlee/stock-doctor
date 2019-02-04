@@ -47,6 +47,7 @@ namespace StockDoctor
                 }
 
                 Util.ClosePricesMap = new Dictionary<DateTime, double>();
+                Util.HighPricesMap = new Dictionary<DateTime, double>();
                 foreach (var day in availableDays)
                 {
                     var dateString = day.ToString(Settings.DateSuffixFormat);
