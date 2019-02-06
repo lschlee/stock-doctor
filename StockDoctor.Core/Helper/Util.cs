@@ -10,6 +10,9 @@ namespace StockDoctor.Core.Helper
     public static class Util
     {
         private static List<PlainOrderIntervalInfo> _plainInfo;
+
+        public static Dictionary<DateTime, Tuple<int,int>> UpDownIndexMap;
+
         public static List<PlainOrderIntervalInfo> PlainInfo
         {
             get
@@ -255,7 +258,16 @@ namespace StockDoctor.Core.Helper
             {
                 return HighPricesMap[closeTime];
             }
-            return GetMaxPrice(closeTime.Subtract(new TimeSpan(0, 1, 0)));
+            return 0;
+        }
+
+        private static Tuple<int, int> GetUpDownIndex(DateTime closeTime)
+        {
+            if (UpDownIndexMap.ContainsKey(closeTime))
+            {
+                return UpDownIndexMap[closeTime];
+            }
+            return new Tuple<int, int>(int.MaxValue, int.MaxValue);
         }
 
         private static void AddCMO(DateTime day)
@@ -564,9 +576,13 @@ namespace StockDoctor.Core.Helper
             {
                 try
                 {
-                    if (GetMaxPrice(planInfo[i].End.AddMinutes(1)) - planInfo[i].ClosePrice > Settings.MinimumVariationOfInterest)
+                    if (GetMaxPrice(planInfo[i].End) - planInfo[i].ClosePrice > Settings.MinimumVariationOfInterest)
                     {
-                        planInfo[i].BuySignal = 1;
+                        var tuple = GetUpDownIndex(planInfo[i].End);
+                        if (tuple.Item2 < tuple.Item1)
+                        {
+                            planInfo[i].BuySignal = 1;
+                        }
                     }
                 }
                 catch (SystemException)
@@ -823,8 +839,11 @@ namespace StockDoctor.Core.Helper
 
             for (int i = 0; i < endIndexIntervals.Count - Settings.SlidingWindowMinutes; i++)
             {
-                var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i]);
-                var endTimeInterval = new DateTime(negBetweenInterval.Last().TradeTime.Year, negBetweenInterval.Last().TradeTime.Month, negBetweenInterval.Last().TradeTime.Day, negBetweenInterval.Last().TradeTime.Hour, negBetweenInterval.Last().TradeTime.Minute, 0);
+                var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + 1] - endIndexIntervals[i]);
+                var lastNeg = negBetweenInterval.Last();
+                var firstNeg = negBetweenInterval.First();
+                var endTimeInterval = new DateTime(lastNeg.TradeTime.Year, lastNeg.TradeTime.Month, lastNeg.TradeTime.Day, lastNeg.TradeTime.Hour, lastNeg.TradeTime.Minute, 0);
+                var startTimeInterval = new DateTime(firstNeg.TradeTime.Year, firstNeg.TradeTime.Month, firstNeg.TradeTime.Day, firstNeg.TradeTime.Hour, firstNeg.TradeTime.Minute, 0);
 
                 if (!ClosePricesMap.ContainsKey(endTimeInterval))
                 {
@@ -836,6 +855,19 @@ namespace StockDoctor.Core.Helper
                     HighPricesMap.Add(endTimeInterval, negBetweenInterval.Select(n => n.TradePrice).Max());
                 }
 
+                if (i!= 0)
+                {
+                    var firstDown = negBetweenInterval.FirstOrDefault(n => GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice >= 2 * Settings.MinimumVariationOfInterest);
+                    var firstUp = negBetweenInterval.FirstOrDefault(n => n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) >= Settings.MinimumVariationOfInterest);
+                    var firstDownIndex = firstDown != null ? negBetweenInterval.IndexOf(firstDown) : int.MaxValue; 
+                    var firstUpIndex = firstUp != null ? negBetweenInterval.IndexOf(firstUp) : int.MaxValue;
+
+                    if (!UpDownIndexMap.ContainsKey(endTimeInterval))
+                    {
+                        UpDownIndexMap.Add(endTimeInterval, new Tuple<int, int>(firstDownIndex, firstUpIndex));
+                    }
+                }
+
             }
 
             for (int i = 0; i < endIndexIntervals.Count; i = i + interpolationPace)
@@ -843,7 +875,7 @@ namespace StockDoctor.Core.Helper
                 if (i + Settings.SlidingWindowMinutes < endIndexIntervals.Count)
                 {
                     var watch = System.Diagnostics.Stopwatch.StartNew();
-                    var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i] - 1);
+                    var negBetweenInterval = negRegistries.GetRange(endIndexIntervals[i], endIndexIntervals[i + Settings.SlidingWindowMinutes] - endIndexIntervals[i]);
                     watch.Stop();
                     var elapsedTimeSpan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
 
