@@ -166,6 +166,8 @@ namespace StockDoctor.Core
         public double ROC { get; internal set; }
 
         public int BuySignal { get; set; }
+        public double BidPrice { get; internal set; }
+        public double Profit { get; internal set; }
 
         private PropertyInfo[] _PropertyInfos = null;
 

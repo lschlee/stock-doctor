@@ -48,6 +48,7 @@ namespace StockDoctor
 
                 Util.ClosePricesMap = new Dictionary<DateTime, double>();
                 Util.HighPricesMap = new Dictionary<DateTime, double>();
+                Util.LowPricesMap = new Dictionary<DateTime, double>();
                 Util.UpDownIndexMap = new Dictionary<DateTime, Tuple<int, int>>();
                 foreach (var day in availableDays)
                 {

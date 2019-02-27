@@ -68,6 +68,7 @@ namespace StockDoctor.Core.Helper
 
         public static Dictionary<DateTime, double> ClosePricesMap { get; set; }
         public static Dictionary<DateTime, double> HighPricesMap { get; set; }
+        public static Dictionary<DateTime, double> LowPricesMap { get; set; }
 
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
@@ -257,6 +258,15 @@ namespace StockDoctor.Core.Helper
             if (HighPricesMap.ContainsKey(closeTime))
             {
                 return HighPricesMap[closeTime];
+            }
+            return 0;
+        }
+
+        private static double GetMinPrice(DateTime closeTime)
+        {
+            if (LowPricesMap.ContainsKey(closeTime))
+            {
+                return LowPricesMap[closeTime];
             }
             return 0;
         }
@@ -576,12 +586,28 @@ namespace StockDoctor.Core.Helper
             {
                 try
                 {
-                    if (GetMaxPrice(planInfo[i].End) - planInfo[i].ClosePrice > Settings.MinimumVariationOfInterest)
+                    if (Math.Round(GetMaxPrice(planInfo[i].End) - planInfo[i].BidPrice, 2) >= Settings.UpperBoundary)
                     {
                         var tuple = GetUpDownIndex(planInfo[i].End);
                         if (tuple.Item2 < tuple.Item1)
                         {
                             planInfo[i].BuySignal = 1;
+                            planInfo[i].Profit = Settings.UpperBoundary;
+                        }
+                        else
+                        {
+                            planInfo[i].Profit = - Settings.LowerBoundary;
+                        }
+                    }
+                    else
+                    {
+                        if (Math.Round(planInfo[i].BidPrice - GetMinPrice(planInfo[i].End), 2) >= Settings.LowerBoundary)
+                        {
+                            planInfo[i].Profit = -Settings.LowerBoundary;
+                        }
+                        else
+                        {
+                            planInfo[i].Profit = GetClosePrice(planInfo[i].End) - planInfo[i].BidPrice;
                         }
                     }
                 }
@@ -824,7 +850,8 @@ namespace StockDoctor.Core.Helper
                 if (negRegistries[i].TradeTime.Ticks >= nextTimeTest.Ticks)
                 {
                     endIndexIntervals.Add(i);
-                    nextTimeTest = nextTimeTest.AddMinutes(1);
+                    //nextTimeTest = nextTimeTest.AddMinutes(1);
+                    nextTimeTest = new DateTime(negRegistries[i].TradeTime.Year, negRegistries[i].TradeTime.Month, negRegistries[i].TradeTime.Day, negRegistries[i].TradeTime.Hour, negRegistries[i].TradeTime.Minute, 0).AddMinutes(1);
                 }
             }
 
@@ -845,20 +872,49 @@ namespace StockDoctor.Core.Helper
                 var endTimeInterval = new DateTime(lastNeg.TradeTime.Year, lastNeg.TradeTime.Month, lastNeg.TradeTime.Day, lastNeg.TradeTime.Hour, lastNeg.TradeTime.Minute, 0);
                 var startTimeInterval = new DateTime(firstNeg.TradeTime.Year, firstNeg.TradeTime.Month, firstNeg.TradeTime.Day, firstNeg.TradeTime.Hour, firstNeg.TradeTime.Minute, 0);
 
+                var agressiveBuys = negBetweenInterval.Where(n => n.AgressorBuyOrderIndicator == "1" && n.AgressorSellOrderIndicator == "2");
                 if (!ClosePricesMap.ContainsKey(endTimeInterval))
                 {
-                    ClosePricesMap.Add(endTimeInterval, negBetweenInterval.Last().TradePrice);
+
+                    if (!agressiveBuys.Any())
+                    {
+                        ClosePricesMap.Add(endTimeInterval, ClosePricesMap[ClosePricesMap.Keys.Last()]);
+                    }
+                    else
+                    {
+                        ClosePricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Last());
+                    }
                 }
 
                 if (!HighPricesMap.ContainsKey(endTimeInterval))
                 {
-                    HighPricesMap.Add(endTimeInterval, negBetweenInterval.Select(n => n.TradePrice).Max());
+                    if (!agressiveBuys.Any())
+                    {
+                        HighPricesMap.Add(endTimeInterval, 0);
+                    }
+                    else
+                    {
+                        HighPricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Max());
+                    }
+                }
+
+                if (!LowPricesMap.ContainsKey(endTimeInterval))
+                {
+                    if (!agressiveBuys.Any())
+                    {
+                        LowPricesMap.Add(endTimeInterval, 0);
+                    }
+                    else
+                    {
+                        LowPricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Min());
+                    }
                 }
 
                 if (i!= 0)
                 {
-                    var firstDown = negBetweenInterval.FirstOrDefault(n => GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice >= 2 * Settings.MinimumVariationOfInterest);
-                    var firstUp = negBetweenInterval.FirstOrDefault(n => n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) >= Settings.MinimumVariationOfInterest);
+
+                    var firstDown = agressiveBuys.FirstOrDefault(n => Math.Round(GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice,2) >= Settings.LowerBoundary);
+                    var firstUp = agressiveBuys.FirstOrDefault(n => Math.Round(n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))),2) >= Settings.UpperBoundary);
                     var firstDownIndex = firstDown != null ? negBetweenInterval.IndexOf(firstDown) : int.MaxValue; 
                     var firstUpIndex = firstUp != null ? negBetweenInterval.IndexOf(firstUp) : int.MaxValue;
 
@@ -896,7 +952,8 @@ namespace StockDoctor.Core.Helper
                                 ClosePrice = negBetweenInterval.Last().TradePrice,
                                 FirstTradePrice = negBetweenInterval.First().TradePrice,
                                 High = negBetweenInterval.Select(n => n.TradePrice).Max(),
-                                Low = negBetweenInterval.Select(n => n.TradePrice).Min()
+                                Low = negBetweenInterval.Select(n => n.TradePrice).Min(),
+                                BidPrice = negBetweenInterval.Where(n => n.AgressorBuyOrderIndicator == "2" && n.AgressorSellOrderIndicator == "1").LastOrDefault()?.TradePrice ?? plainInfos.Last().BidPrice
                             };
 
                             plainInfos.Add(newPlainInfo);
@@ -909,6 +966,7 @@ namespace StockDoctor.Core.Helper
                             plainInfo.FirstTradePrice = negBetweenInterval.First().TradePrice;
                             plainInfo.High = negBetweenInterval.Select(n => n.TradePrice).Max();
                             plainInfo.Low = negBetweenInterval.Select(n => n.TradePrice).Min();
+                            plainInfo.BidPrice = negBetweenInterval.Where(n => n.AgressorBuyOrderIndicator == "2" && n.AgressorSellOrderIndicator == "1").LastOrDefault()?.TradePrice ?? plainInfos.Last().BidPrice;
                         }
 
                         Console.Write($"\rPlanified Neg data between {startTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")} and {endTimeInterval.ToString("dd/MM/yyyy HH:mm:ss")}.");

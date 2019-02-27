@@ -78,7 +78,9 @@ namespace StockDoctor.Core.Helper
 
         public static int ROCPeriods => int.Parse(Configuration["ROCPeriods"]);
 
-        public static double MinimumVariationOfInterest => double.Parse(Configuration["MinimumVariationOfInterest"]);
+        public static double UpperBoundary => double.Parse(Configuration["UpperBoundary"]);
+
+        public static double LowerBoundary => double.Parse(Configuration["LowerBoundary"]);
 
     }
 }
