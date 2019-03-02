@@ -69,6 +69,9 @@ namespace StockDoctor.Core.Helper
         public static Dictionary<DateTime, double> ClosePricesMap { get; set; }
         public static Dictionary<DateTime, double> HighPricesMap { get; set; }
         public static Dictionary<DateTime, double> LowPricesMap { get; set; }
+        public static Dictionary<DateTime, double> CloseAskPricesMap { get; set; }
+        public static Dictionary<DateTime, double> HighAskPricesMap { get; set; }
+        public static Dictionary<DateTime, Tuple<int,int>> UpDownIndexAskMap;
 
         public static void ParseLineValues<T>(string fileRelativePath, Action<string[], List<T>> textValuesHandler, Action<List<T>, List<PlainOrderIntervalInfo>> resultHandler = null)
         {
@@ -253,11 +256,29 @@ namespace StockDoctor.Core.Helper
             return GetClosePrice(closeTime.Subtract(new TimeSpan(0, 1, 0)));
         }
 
+        private static double GetCloseAskPrice(DateTime closeTime)
+        {
+            if (CloseAskPricesMap.ContainsKey(closeTime))
+            {
+                return CloseAskPricesMap[closeTime];
+            }
+            return GetCloseAskPrice(closeTime.Subtract(new TimeSpan(0, 1, 0)));
+        }
+
         private static double GetMaxPrice(DateTime closeTime)
         {
             if (HighPricesMap.ContainsKey(closeTime))
             {
                 return HighPricesMap[closeTime];
+            }
+            return 0;
+        }
+
+        private static double GetMaxAskPrice(DateTime closeTime)
+        {
+            if (HighAskPricesMap.ContainsKey(closeTime))
+            {
+                return HighAskPricesMap[closeTime];
             }
             return 0;
         }
@@ -276,6 +297,15 @@ namespace StockDoctor.Core.Helper
             if (UpDownIndexMap.ContainsKey(closeTime))
             {
                 return UpDownIndexMap[closeTime];
+            }
+            return new Tuple<int, int>(int.MaxValue, int.MaxValue);
+        }
+
+        private static Tuple<int, int> GetUpDownIndexAsk(DateTime closeTime)
+        {
+            if (UpDownIndexAskMap.ContainsKey(closeTime))
+            {
+                return UpDownIndexAskMap[closeTime];
             }
             return new Tuple<int, int>(int.MaxValue, int.MaxValue);
         }
@@ -580,36 +610,160 @@ namespace StockDoctor.Core.Helper
             PlainInfo = PlainInfo.GetRange(0, PlainInfo.Count - Settings.SlidingWindowMinutes);
         }
 
+
+        private static double GetMaxIntervalPrice(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var maxPrices = new List<double>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                maxPrices.Add(GetMaxPrice(intervalStart.AddMinutes(min)));
+            }
+
+            return maxPrices.Max();
+        }
+
+
+        private static double GetMinIntervalPrice(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var minPrices = new List<double>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                minPrices.Add(GetMinPrice(intervalStart.AddMinutes(min)));
+            }
+
+            return minPrices.Min();
+        }
+        
+
+        private static double GetMaxIntervalAskPrice(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var maxPrices = new List<double>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                maxPrices.Add(GetMaxAskPrice(intervalStart.AddMinutes(min)));
+            }
+
+            return maxPrices.Max();
+        }
+
+        private static Tuple<int, int> GetUpDownIndexInterval(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var allUpDown = new List<Tuple<int, int>>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                allUpDown.Add(GetUpDownIndex(intervalStart.AddMinutes(min)));
+            }
+
+            return new Tuple<int, int>(allUpDown.Select(x => x.Item1).Min(), allUpDown.Select(x => x.Item2).Min());
+        }
+
+        private static Tuple<int, int> GetUpDownIndexAskInterval(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var allUpDown = new List<Tuple<int, int>>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                allUpDown.Add(GetUpDownIndexAsk(intervalStart.AddMinutes(min)));
+            }
+
+            return new Tuple<int, int>(allUpDown.Select(x => x.Item1).Min(), allUpDown.Select(x => x.Item2).Min());
+        }
+
+        private static double GetCloseAskIntervalPrice(DateTime intervalStart, DateTime intervalEnd)
+        {
+            var diffMin = (intervalEnd - intervalStart).TotalMinutes;
+            var closePrices = new List<double>();
+
+            for (int min = 0; min < diffMin; min++)
+            {
+                closePrices.Add(GetCloseAskPrice(intervalStart.AddMinutes(min)));
+            }
+
+            return closePrices.Last();
+        }
+
         private static void SetBuySignal(List<PlainOrderIntervalInfo> planInfo)
         {
             for (int i = 0; i < planInfo.Count; i++)
             {
                 try
                 {
-                    if (Math.Round(GetMaxPrice(planInfo[i].End) - planInfo[i].BidPrice, 2) >= Settings.UpperBoundary)
+
+                    if (Math.Round(GetMaxIntervalPrice(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold)) - planInfo[i].ClosePrice, 2) >= Settings.UpperBoundary)
                     {
-                        var tuple = GetUpDownIndex(planInfo[i].End);
+                        var tuple = GetUpDownIndexInterval(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold));
                         if (tuple.Item2 < tuple.Item1)
                         {
                             planInfo[i].BuySignal = 1;
+                        }
+                    }
+
+                    if (Math.Round(GetMaxIntervalAskPrice(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold)) - planInfo[i].BidPrice, 2) >= Settings.UpperBoundary)
+                    {
+                        var tuple = GetUpDownIndexAskInterval(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold));
+                        if (tuple.Item2 < tuple.Item1)
+                        {
                             planInfo[i].Profit = Settings.UpperBoundary;
                         }
                         else
                         {
-                            planInfo[i].Profit = - Settings.LowerBoundary;
+                            planInfo[i].Profit = -Settings.LowerBoundary;
                         }
                     }
                     else
                     {
-                        if (Math.Round(planInfo[i].BidPrice - GetMinPrice(planInfo[i].End), 2) >= Settings.LowerBoundary)
+                        if (Math.Round(planInfo[i].BidPrice - GetMinIntervalPrice(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold)), 2) >= Settings.LowerBoundary)
                         {
                             planInfo[i].Profit = -Settings.LowerBoundary;
                         }
                         else
                         {
-                            planInfo[i].Profit = GetClosePrice(planInfo[i].End) - planInfo[i].BidPrice;
+                            planInfo[i].Profit = GetCloseAskIntervalPrice(planInfo[i].End, planInfo[i].End.AddMinutes(Settings.BuyTimeHold)) - planInfo[i].BidPrice;
                         }
                     }
+
+                    //if (Math.Round(GetMaxPrice(planInfo[i].End) - planInfo[i].ClosePrice,2) >= Settings.UpperBoundary)
+                    //{
+                    //    var tuple = GetUpDownIndex(planInfo[i].End);
+                    //    if (tuple.Item2 < tuple.Item1)
+                    //    {
+                    //        planInfo[i].BuySignal = 1;
+                    //    }
+                    //}
+
+                    //if (Math.Round(GetMaxAskPrice(planInfo[i].End) - planInfo[i].BidPrice, 2) >= Settings.UpperBoundary)
+                    //{
+                    //    var tuple = GetUpDownIndexAsk(planInfo[i].End);
+                    //    if (tuple.Item2 < tuple.Item1)
+                    //    {
+                    //        planInfo[i].Profit = Settings.UpperBoundary;
+                    //    }
+                    //    else
+                    //    {
+                    //        planInfo[i].Profit = -Settings.LowerBoundary;
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    if (Math.Round(planInfo[i].BidPrice - GetMinPrice(planInfo[i].End), 2) >= Settings.LowerBoundary)
+                    //    {
+                    //        planInfo[i].Profit = -Settings.LowerBoundary;
+                    //    }
+                    //    else
+                    //    {
+                    //        planInfo[i].Profit = GetCloseAskPrice(planInfo[i].End) - planInfo[i].BidPrice;
+                    //    }
+                    //}
+
                 }
                 catch (SystemException)
                 {
@@ -872,29 +1026,39 @@ namespace StockDoctor.Core.Helper
                 var endTimeInterval = new DateTime(lastNeg.TradeTime.Year, lastNeg.TradeTime.Month, lastNeg.TradeTime.Day, lastNeg.TradeTime.Hour, lastNeg.TradeTime.Minute, 0);
                 var startTimeInterval = new DateTime(firstNeg.TradeTime.Year, firstNeg.TradeTime.Month, firstNeg.TradeTime.Day, firstNeg.TradeTime.Hour, firstNeg.TradeTime.Minute, 0);
 
-                var agressiveBuys = negBetweenInterval.Where(n => n.AgressorBuyOrderIndicator == "1" && n.AgressorSellOrderIndicator == "2");
                 if (!ClosePricesMap.ContainsKey(endTimeInterval))
+                {
+                    ClosePricesMap.Add(endTimeInterval, negBetweenInterval.Last().TradePrice);
+                }
+
+                var agressiveBuys = negBetweenInterval.Where(n => n.AgressorBuyOrderIndicator == "1" && n.AgressorSellOrderIndicator == "2");
+                if (!CloseAskPricesMap.ContainsKey(endTimeInterval))
                 {
 
                     if (!agressiveBuys.Any())
                     {
-                        ClosePricesMap.Add(endTimeInterval, ClosePricesMap[ClosePricesMap.Keys.Last()]);
+                        CloseAskPricesMap.Add(endTimeInterval, ClosePricesMap[ClosePricesMap.Keys.Last()]);
                     }
                     else
                     {
-                        ClosePricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Last());
+                        CloseAskPricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Last());
                     }
                 }
 
                 if (!HighPricesMap.ContainsKey(endTimeInterval))
                 {
+                    HighPricesMap.Add(endTimeInterval, negBetweenInterval.Select(n => n.TradePrice).Max());
+                }
+
+                if (!HighAskPricesMap.ContainsKey(endTimeInterval))
+                {
                     if (!agressiveBuys.Any())
                     {
-                        HighPricesMap.Add(endTimeInterval, 0);
+                        HighAskPricesMap.Add(endTimeInterval, 0);
                     }
                     else
                     {
-                        HighPricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Max());
+                        HighAskPricesMap.Add(endTimeInterval, agressiveBuys.Select(n => n.TradePrice).Max());
                     }
                 }
 
@@ -913,14 +1077,24 @@ namespace StockDoctor.Core.Helper
                 if (i!= 0)
                 {
 
-                    var firstDown = agressiveBuys.FirstOrDefault(n => Math.Round(GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice,2) >= Settings.LowerBoundary);
-                    var firstUp = agressiveBuys.FirstOrDefault(n => Math.Round(n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))),2) >= Settings.UpperBoundary);
-                    var firstDownIndex = firstDown != null ? negBetweenInterval.IndexOf(firstDown) : int.MaxValue; 
+                    var firstDown = negBetweenInterval.FirstOrDefault(n => Math.Round(GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice, 2) >= Settings.LowerBoundary);
+                    var firstUp = negBetweenInterval.FirstOrDefault(n => Math.Round(n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))), 2) >= Settings.UpperBoundary);
+                    var firstDownIndex = firstDown != null ? negBetweenInterval.IndexOf(firstDown) : int.MaxValue;
                     var firstUpIndex = firstUp != null ? negBetweenInterval.IndexOf(firstUp) : int.MaxValue;
 
                     if (!UpDownIndexMap.ContainsKey(endTimeInterval))
                     {
                         UpDownIndexMap.Add(endTimeInterval, new Tuple<int, int>(firstDownIndex, firstUpIndex));
+                    }
+
+                    firstDown = agressiveBuys.FirstOrDefault(n => Math.Round(GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))) - n.TradePrice,2) >= Settings.LowerBoundary);
+                    firstUp = agressiveBuys.FirstOrDefault(n => Math.Round(n.TradePrice - GetClosePrice(endTimeInterval.Subtract(new TimeSpan(0, 1, 0))),2) >= Settings.UpperBoundary);
+                    firstDownIndex = firstDown != null ? negBetweenInterval.IndexOf(firstDown) : int.MaxValue; 
+                    firstUpIndex = firstUp != null ? negBetweenInterval.IndexOf(firstUp) : int.MaxValue;
+
+                    if (!UpDownIndexAskMap.ContainsKey(endTimeInterval))
+                    {
+                        UpDownIndexAskMap.Add(endTimeInterval, new Tuple<int, int>(firstDownIndex, firstUpIndex));
                     }
                 }
 
